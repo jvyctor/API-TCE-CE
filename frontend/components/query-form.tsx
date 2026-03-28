@@ -74,41 +74,10 @@ const yearMonthRule: ValidationRule = {
   inputMode: "numeric"
 };
 
-function sanitizeIntervalDateInput(value: string) {
-  const cleaned = value.replace(/[^\d\-_]/g, "").slice(0, 21);
-  const [firstRaw = "", secondRaw = ""] = cleaned.split("_", 2);
-
-  const normalizeSegment = (segment: string) => {
-    let normalized = "";
-    let digitCount = 0;
-
-    for (const char of segment) {
-      if (/\d/.test(char)) {
-        if (digitCount >= 8) continue;
-        normalized += char;
-        digitCount += 1;
-        continue;
-      }
-
-      if (char === "-" && (digitCount === 4 || digitCount === 6)) {
-        if (!normalized.endsWith("-")) normalized += char;
-      }
-    }
-
-    return normalized.slice(0, 10);
-  };
-
-  const first = normalizeSegment(firstRaw);
-  const second = normalizeSegment(secondRaw);
-
-  if (!cleaned.includes("_")) return first;
-  return `${first}_${second}`;
-}
-
 function applyVisualMask(value: string, rule: ValidationRule | null) {
   if (!rule) return value;
   if (rule.kind === "year-month") return value.replace(/\D/g, "").slice(0, 6);
-  return sanitizeIntervalDateInput(value);
+  return value;
 }
 
 function getValidationRule(parameterName: string): ValidationRule | null {
@@ -129,6 +98,16 @@ function getValidationRule(parameterName: string): ValidationRule | null {
 
 function renderHelpText(parameter: QueryParameterOption) {
   return parameter.description ?? parameterHelp[parameter.name] ?? `Tipo: ${parameter.type ?? "string"}`;
+}
+
+function parseIntervalDateValue(value: string) {
+  const [start = "", end = ""] = value.split("_", 2);
+  return { start, end };
+}
+
+function buildIntervalDateValue(start: string, end: string) {
+  if (!start) return "";
+  return end ? `${start}_${end}` : start;
 }
 
 export function QueryForm({
@@ -152,6 +131,15 @@ export function QueryForm({
   const [offset, setOffset] = useState(
     initialFilters.find((f) => f.key === "deslocamento")?.value ?? String((page - 1) * pageSize)
   );
+  const [dateRanges, setDateRanges] = useState<Record<string, { start: string; end: string }>>(() => {
+    const entries: Record<string, { start: string; end: string }> = {};
+    initialFilters.forEach((filter) => {
+      if (getValidationRule(filter.key)?.kind === "interval-date") {
+        entries[filter.key] = parseIntervalDateValue(filter.value);
+      }
+    });
+    return entries;
+  });
 
   const selectedMetadata = useMemo(
     () => resources.find((r) => r.key === activeResource) ?? resources[0],
@@ -207,6 +195,95 @@ export function QueryForm({
     const validationRule = getValidationRule(parameter.name);
     const id = `field-${parameter.name}`;
     const helpId = `help-${parameter.name}`;
+
+    if (validationRule?.kind === "interval-date") {
+      const currentRange = dateRanges[parameter.name] ?? parseIntervalDateValue(filterMap.get(parameter.name) ?? "");
+      const hiddenValue = buildIntervalDateValue(currentRange.start, currentRange.end);
+
+      return (
+        <div className="space-y-1.5">
+          <label htmlFor={`${id}-start`} className="flex items-center gap-2 text-sm font-medium text-foreground">
+            {parameter.name}
+            {!isOptional && (
+              <span className="rounded bg-warning/20 px-1.5 py-0.5 text-xs font-medium text-warning">
+                Obrigatorio
+              </span>
+            )}
+          </label>
+          <input
+            type="hidden"
+            name={parameter.name}
+            value={hiddenValue}
+            disabled={isOptional && hiddenValue === ""}
+            readOnly
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor={`${id}-start`} className="block text-xs font-medium text-muted-foreground">
+                Data inicial
+              </label>
+              <input
+                id={`${id}-start`}
+                type="date"
+                value={currentRange.start}
+                required={!isOptional}
+                max={currentRange.end || undefined}
+                aria-describedby={helpId}
+                className={cn(
+                  "block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground",
+                  "transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                )}
+                onChange={(e) => {
+                  const nextStart = e.currentTarget.value;
+                  setDateRanges((current) => {
+                    const previous = current[parameter.name] ?? { start: "", end: "" };
+                    return {
+                      ...current,
+                      [parameter.name]: {
+                        start: nextStart,
+                        end: previous.end && nextStart && previous.end < nextStart ? "" : previous.end
+                      }
+                    };
+                  });
+                }}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor={`${id}-end`} className="block text-xs font-medium text-muted-foreground">
+                Data final
+              </label>
+              <input
+                id={`${id}-end`}
+                type="date"
+                value={currentRange.end}
+                min={currentRange.start || undefined}
+                aria-describedby={helpId}
+                className={cn(
+                  "block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground",
+                  "transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                )}
+                onChange={(e) => {
+                  const nextEnd = e.currentTarget.value;
+                  setDateRanges((current) => ({
+                    ...current,
+                    [parameter.name]: {
+                      start: currentRange.start,
+                      end: nextEnd
+                    }
+                  }));
+                }}
+              />
+            </div>
+          </div>
+          <p id={helpId} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+            <span>{renderHelpText(parameter)}</span>
+          </p>
+          <p className="text-xs text-primary">Selecione uma data unica ou um intervalo pelo calendario.</p>
+        </div>
+      );
+    }
 
     return (
       <div className="space-y-1.5">

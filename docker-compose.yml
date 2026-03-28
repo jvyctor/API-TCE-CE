@@ -1,0 +1,26 @@
+services:
+  tcece-proxy-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tcece-proxy-api
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      TceCeApi__BaseUrl: ${TCECE_API_BASE_URL:-https://api.tcm.ce.gov.br/}
+      TceCeApi__CacheSeconds: ${TCECE_API_CACHE_SECONDS:-300}
+      TceCeApi__ApiKey: ${TCECE_API_KEY:-}
+      TceCeApi__ApiKeyHeaderName: ${TCECE_API_KEY_HEADER:-}
+  tcece-proxy-web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tcece-proxy-web
+    depends_on:
+      - tcece-proxy-api
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://tcece-proxy-api:8080}

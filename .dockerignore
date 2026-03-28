@@ -1,0 +1,9 @@
+**/.git
+**/.vs
+**/.vscode
+**/.next
+**/node_modules
+**/bin
+**/obj
+**/TestResults
+README.md

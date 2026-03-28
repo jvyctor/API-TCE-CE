@@ -15,13 +15,18 @@ builder.Services
 builder.Services.AddMemoryCache();
 builder.Services.AddHealthChecks();
 builder.Services.AddProblemDetails();
+builder.Services.AddResponseCompression();
 builder.Services.AddSingleton<ITceCeResourceCatalog, TceCeSwaggerResourceCatalog>();
-builder.Services.AddHttpClient<ITceCeClient, TceCeClient>();
+builder.Services.AddHttpClient<ITceCeClient, TceCeClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+app.UseResponseCompression();
 app.UseExceptionHandler(exceptionApp =>
 {
     exceptionApp.Run(async context =>

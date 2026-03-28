@@ -1,4 +1,5 @@
 using System.Net;
+using System.Diagnostics;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -27,13 +28,31 @@ public sealed class TceCeClient(
             throw new ResourceNotConfiguredException(resource);
         }
 
-        var normalizedPage = pagination.NormalizedPage;
-        var normalizedPageSize = pagination.NormalizedPageSize;
-        var sourceUri = BuildSourceUri(definition.Path, queryParameters);
+        var effectiveQueryParameters = TceCePagination.ApplySourcePagination(definition, pagination, queryParameters);
+        var sourceUri = BuildSourceUri(definition.Path, effectiveQueryParameters);
         var cacheKey = $"tcece::{resource}::{sourceUri}";
+        var requestStopwatch = Stopwatch.StartNew();
 
-        var cachedPayload = await memoryCache.GetOrCreateAsync(cacheKey, async entry =>
+        if (memoryCache.TryGetValue(cacheKey, out CachedPayload? cachedPayload))
         {
+            logger.LogInformation(
+                "TCE-CE cache hit. Resource: {Resource}. Url: {Url}. PaginationMode: {PaginationMode}",
+                resource,
+                sourceUri,
+                TceCePagination.ResolvePaginationMode(definition));
+
+            return BuildEnvelope(
+                resource,
+                pagination,
+                definition,
+                cachedPayload!,
+                cacheHit: true,
+                requestDurationMs: requestStopwatch.ElapsedMilliseconds);
+        }
+
+        cachedPayload = await memoryCache.GetOrCreateAsync(cacheKey, async entry =>
+        {
+            var upstreamStopwatch = Stopwatch.StartNew();
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_options.CacheSeconds);
 
             try
@@ -75,7 +94,22 @@ public sealed class TceCeClient(
                 }
 
                 var normalized = TceCeResponseParser.Normalize(rootNode);
-                return new CachedPayload(DateTimeOffset.UtcNow, normalized.Items, normalized.Metadata, sourceUri);
+                upstreamStopwatch.Stop();
+
+                logger.LogInformation(
+                    "TCE-CE upstream request completed. Resource: {Resource}. Url: {Url}. DurationMs: {DurationMs}. ItemCount: {ItemCount}. PaginationMode: {PaginationMode}",
+                    resource,
+                    sourceUri,
+                    upstreamStopwatch.ElapsedMilliseconds,
+                    normalized.Items.Count,
+                    TceCePagination.ResolvePaginationMode(definition));
+
+                return new CachedPayload(
+                    DateTimeOffset.UtcNow,
+                    normalized.Items,
+                    normalized.Metadata,
+                    sourceUri,
+                    upstreamStopwatch.ElapsedMilliseconds);
             }
             catch (HttpRequestException exception)
             {
@@ -89,24 +123,48 @@ public sealed class TceCeClient(
             }
         });
 
-        var totalItems = cachedPayload!.Items.Count;
-        var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)normalizedPageSize);
-        var skip = (normalizedPage - 1) * normalizedPageSize;
-        var pageItems = cachedPayload.Items.Skip(skip).Take(normalizedPageSize).ToArray();
+        return BuildEnvelope(
+            resource,
+            pagination,
+            definition,
+            cachedPayload!,
+            cacheHit: false,
+            requestDurationMs: requestStopwatch.ElapsedMilliseconds);
+    }
 
-        return new PaginatedEnvelope
-        {
-            Resource = resource,
-            SourceUrl = cachedPayload.SourceUrl,
-            Page = normalizedPage,
-            PageSize = normalizedPageSize,
-            TotalItems = totalItems,
-            TotalPages = totalPages,
-            Items = pageItems,
-            Metadata = cachedPayload.Metadata,
-            CachedAtUtc = cachedPayload.CachedAtUtc,
-            ExpiresAtUtc = cachedPayload.CachedAtUtc.AddSeconds(_options.CacheSeconds)
-        };
+    private PaginatedEnvelope BuildEnvelope(
+        string resource,
+        PaginationQuery pagination,
+        TceCeResourceDefinition definition,
+        CachedPayload cachedPayload,
+        bool cacheHit,
+        long requestDurationMs)
+    {
+        var envelope = TceCePagination.CreateEnvelope(
+            resource,
+            cachedPayload.SourceUrl,
+            pagination,
+            definition,
+            cachedPayload.Items,
+            cachedPayload.Metadata,
+            cachedPayload.CachedAtUtc,
+            _options.CacheSeconds);
+
+        envelope.Metadata["cacheHit"] = cacheHit;
+        envelope.Metadata["requestDurationMs"] = requestDurationMs;
+        envelope.Metadata["upstreamDurationMs"] = cachedPayload.UpstreamDurationMs;
+
+        logger.LogInformation(
+            "TCE-CE envelope ready. Resource: {Resource}. Page: {Page}. PageSize: {PageSize}. CacheHit: {CacheHit}. RequestDurationMs: {RequestDurationMs}. UpstreamDurationMs: {UpstreamDurationMs}. TotalItems: {TotalItems}",
+            resource,
+            envelope.Page,
+            envelope.PageSize,
+            cacheHit,
+            requestDurationMs,
+            cachedPayload.UpstreamDurationMs,
+            envelope.TotalItems);
+
+        return envelope;
     }
 
     private string BuildSourceUri(string path, IReadOnlyDictionary<string, string> queryParameters)
@@ -135,5 +193,6 @@ public sealed class TceCeClient(
         DateTimeOffset CachedAtUtc,
         IReadOnlyList<JsonObject> Items,
         JsonObject Metadata,
-        string SourceUrl);
+        string SourceUrl,
+        long UpstreamDurationMs);
 }

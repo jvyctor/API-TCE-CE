@@ -103,7 +103,8 @@ public sealed class TceCeSwaggerResourceCatalog : ITceCeResourceCatalog
                         .Where(parameter => !parameter.Required)
                         .Select(parameter => parameter.Name)
                         .ToArray(),
-                    QueryParameters = queryParameters
+                    QueryParameters = queryParameters,
+                    PaginationMode = InferPaginationMode(queryParameters)
                 };
             }
 
@@ -227,5 +228,17 @@ public sealed class TceCeSwaggerResourceCatalog : ITceCeResourceCatalog
             .Replace("Documentacao referente a ", string.Empty, StringComparison.OrdinalIgnoreCase)
             .Replace(" - SIM", string.Empty, StringComparison.OrdinalIgnoreCase)
             .Trim();
+    }
+
+    private static TceCePaginationMode InferPaginationMode(
+        IEnumerable<TceCeQueryParameterDefinition> queryParameters)
+    {
+        var parameterNames = queryParameters
+            .Select(parameter => parameter.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return parameterNames.Contains("quantidade") || parameterNames.Contains("deslocamento")
+            ? TceCePaginationMode.Source
+            : TceCePaginationMode.Local;
     }
 }

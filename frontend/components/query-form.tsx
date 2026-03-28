@@ -124,11 +124,13 @@ export function QueryForm({
   const router = useRouter();
   const pathname = usePathname();
   const formRef = useRef<HTMLFormElement>(null);
+  const shouldHighlightValidationRef = useRef(true);
   const [activeResource, setActiveResource] = useState(selectedResource);
   const [municipalityCode, setMunicipalityCode] = useState(selectedMunicipalityCode);
   const [localPage, setLocalPage] = useState(page);
   const [localPageSize, setLocalPageSize] = useState(pageSize);
   const [showOptional, setShowOptional] = useState(false);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
   const [quantity, setQuantity] = useState(
     initialFilters.find((f) => f.key === "quantidade")?.value ?? String(pageSize)
   );
@@ -167,6 +169,7 @@ export function QueryForm({
     setLocalPage(page);
     setLocalPageSize(pageSize);
     setShowOptional(false);
+    setInvalidFields([]);
     setQuantity(
       initialFilters.find((f) => f.key === "quantidade")?.value ?? String(pageSize)
     );
@@ -183,6 +186,29 @@ export function QueryForm({
       return entries;
     });
   }, [initialFilters, page, pageSize, selectedMunicipalityCode, selectedResource]);
+
+  function clearInvalidField(fieldName: string) {
+    setInvalidFields((current) => current.filter((entry) => entry !== fieldName));
+  }
+
+  function validateRequiredFields(formData: FormData, municipalityValue: string) {
+    const missingFields = requiredParameters
+      .map((parameter) => parameter.name)
+      .filter((parameterName) => {
+        if (parameterName === "codigo_municipio") {
+          return municipalityValue === "";
+        }
+
+        const value = formData.get(parameterName);
+        return typeof value !== "string" || value.trim() === "";
+      });
+
+    if (shouldHighlightValidationRef.current) {
+      setInvalidFields(missingFields);
+    }
+
+    return missingFields.length === 0;
+  }
 
   function syncPagination(nextPage: number, nextPageSize: number) {
     setQuantity(String(nextPageSize));
@@ -247,6 +273,7 @@ export function QueryForm({
   }
 
   function submitForm() {
+    shouldHighlightValidationRef.current = false;
     formRef.current?.requestSubmit();
   }
 
@@ -276,6 +303,13 @@ export function QueryForm({
     const municipalityValue = String(
       formData.get("codigo_municipio") ?? municipalityCode
     ).trim();
+
+    const isValid = validateRequiredFields(formData, municipalityValue);
+    shouldHighlightValidationRef.current = true;
+
+    if (!isValid) {
+      return;
+    }
 
     if (resourceValue) {
       params.set("resource", resourceValue);
@@ -322,6 +356,7 @@ export function QueryForm({
     const validationRule = getValidationRule(parameter.name);
     const id = `field-${parameter.name}`;
     const helpId = `help-${parameter.name}`;
+    const isInvalid = invalidFields.includes(parameter.name);
 
     if (validationRule?.kind === "interval-date") {
       const currentRange = dateRanges[parameter.name] ?? parseIntervalDateValue(filterMap.get(parameter.name) ?? "");
@@ -356,12 +391,17 @@ export function QueryForm({
                 required={!isOptional}
                 max={currentRange.end || undefined}
                 aria-describedby={helpId}
+                aria-invalid={isInvalid}
                 className={cn(
                   "block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground",
-                  "transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  "transition-colors focus:outline-none focus:ring-2",
+                  isInvalid
+                    ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                    : "focus:border-primary focus:ring-primary/20"
                 )}
                 onChange={(e) => {
                   const nextStart = e.currentTarget.value;
+                  clearInvalidField(parameter.name);
                   setDateRanges((current) => {
                     const previous = current[parameter.name] ?? { start: "", end: "" };
                     return {
@@ -386,12 +426,17 @@ export function QueryForm({
                 value={currentRange.end}
                 min={currentRange.start || undefined}
                 aria-describedby={helpId}
+                aria-invalid={isInvalid}
                 className={cn(
                   "block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground",
-                  "transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  "transition-colors focus:outline-none focus:ring-2",
+                  isInvalid
+                    ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                    : "focus:border-primary focus:ring-primary/20"
                 )}
                 onChange={(e) => {
                   const nextEnd = e.currentTarget.value;
+                  clearInvalidField(parameter.name);
                   setDateRanges((current) => ({
                     ...current,
                     [parameter.name]: {
@@ -407,6 +452,9 @@ export function QueryForm({
             <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
             <span>{renderHelpText(parameter)}</span>
           </p>
+          {isInvalid && (
+            <p className="text-xs font-medium text-destructive">Preencha este campo obrigatorio para consultar.</p>
+          )}
           <p className="text-xs text-primary">Selecione uma data unica ou um intervalo pelo calendario.</p>
         </div>
       );
@@ -432,9 +480,13 @@ export function QueryForm({
           pattern={validationRule?.pattern}
           title={validationRule?.title}
           aria-describedby={helpId}
+          aria-invalid={isInvalid}
           className={cn(
             "block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground",
-            "transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
+            "transition-colors focus:outline-none focus:ring-2",
+            isInvalid
+              ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+              : "focus:border-primary focus:ring-primary/20",
             "disabled:cursor-not-allowed disabled:opacity-50"
           )}
           onInvalid={(e) => {
@@ -445,6 +497,7 @@ export function QueryForm({
           }}
           onInput={(e) => e.currentTarget.setCustomValidity("")}
           onChange={(e) => {
+            clearInvalidField(parameter.name);
             e.currentTarget.value = applyVisualMask(e.currentTarget.value, validationRule);
           }}
         />
@@ -454,6 +507,9 @@ export function QueryForm({
         </p>
         {validationRule && (
           <p className="text-xs text-primary">{validationRule.example}</p>
+        )}
+        {isInvalid && (
+          <p className="text-xs font-medium text-destructive">Preencha este campo obrigatorio para consultar.</p>
         )}
       </div>
     );
@@ -465,6 +521,7 @@ export function QueryForm({
       method="get"
       ref={formRef}
       onSubmit={handleSubmit}
+      noValidate
       className="space-y-6"
     >
       {/* Primary Selection */}
@@ -508,6 +565,7 @@ export function QueryForm({
               value={municipalityCode}
               onChange={(e) => {
                 setMunicipalityCode(e.target.value);
+                clearInvalidField("codigo_municipio");
                 setTimeout(submitForm, 0);
               }}
               className="block w-full appearance-none rounded-md border bg-card px-3 py-2.5 pr-10 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -555,6 +613,9 @@ export function QueryForm({
         <div className="flex items-end gap-2">
           <button
             type="submit"
+            onClick={() => {
+              shouldHighlightValidationRef.current = true;
+            }}
             className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Search className="h-4 w-4" aria-hidden="true" />
@@ -573,7 +634,12 @@ export function QueryForm({
 
       {/* Required Fields */}
       {requiredParameters.length > 0 && (
-        <fieldset className="space-y-4 rounded-lg border bg-card/50 p-4">
+        <fieldset
+          className={cn(
+            "space-y-4 rounded-lg border bg-card/50 p-4 transition-colors",
+            invalidFields.length > 0 && "border-destructive bg-destructive/5"
+          )}
+        >
           <legend className="flex items-center gap-2 px-2 text-sm font-medium text-foreground">
             <AlertCircle className="h-4 w-4 text-warning" aria-hidden="true" />
             Campos obrigatorios ({requiredParameters.length})
@@ -595,12 +661,19 @@ export function QueryForm({
                       readOnly
                       value={municipalityCode}
                       placeholder="Selecione um municipio acima"
-                      className="block w-full rounded-md border bg-secondary px-3 py-2.5 text-sm text-muted-foreground"
+                      aria-invalid={invalidFields.includes(p.name)}
+                      className={cn(
+                        "block w-full rounded-md border bg-secondary px-3 py-2.5 text-sm text-muted-foreground",
+                        invalidFields.includes(p.name) && "border-destructive"
+                      )}
                     />
                     <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                       <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
                       <span>Preenchido automaticamente ao selecionar o municipio.</span>
                     </p>
+                    {invalidFields.includes(p.name) && (
+                      <p className="text-xs font-medium text-destructive">Selecione um municipio para consultar.</p>
+                    )}
                   </div>
                 );
               }
@@ -661,13 +734,25 @@ export function QueryForm({
                       type="number"
                       min={0}
                       value={offset}
-                      onChange={(e) => setOffset(e.target.value)}
-                      className="block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      onChange={(e) => {
+                        clearInvalidField(p.name);
+                        setOffset(e.target.value);
+                      }}
+                      aria-invalid={invalidFields.includes(p.name)}
+                      className={cn(
+                        "block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground transition-colors focus:outline-none focus:ring-2",
+                        invalidFields.includes(p.name)
+                          ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                          : "focus:border-primary focus:ring-primary/20"
+                      )}
                     />
                     <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                       <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
                       <span>{renderHelpText(p)}</span>
                     </p>
+                    {invalidFields.includes(p.name) && (
+                      <p className="text-xs font-medium text-destructive">Preencha este campo obrigatorio para consultar.</p>
+                    )}
                   </div>
                 );
               }

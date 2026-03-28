@@ -86,6 +86,11 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background-image:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.07), transparent 28%),
+      radial-gradient(circle at top right, hsl(var(--warning) / 0.08), transparent 18%),
+      linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
+    background-attachment: fixed;
   }
 
   input,
@@ -109,6 +114,56 @@
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .surface-panel {
+    background: linear-gradient(180deg, hsl(var(--card) / 0.96), hsl(var(--card)));
+    border: 1px solid hsl(var(--border));
+    box-shadow:
+      0 1px 0 hsl(var(--background) / 0.45) inset,
+      0 20px 60px hsl(200 30% 10% / 0.06);
+    backdrop-filter: blur(14px);
+  }
+
+  .subtle-location-pulse {
+    animation: subtle-location-pulse 2.4s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .soft-reveal {
+    animation: soft-reveal 420ms ease-out both;
+  }
+}
+
+.dark .surface-panel {
+  background:
+    linear-gradient(180deg, hsl(var(--card) / 0.94), hsl(var(--card) / 0.98));
+  box-shadow:
+    0 1px 0 hsl(var(--foreground) / 0.04) inset,
+    0 24px 70px hsl(200 40% 2% / 0.35);
+}
+
+@keyframes subtle-location-pulse {
+  0%, 100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes soft-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

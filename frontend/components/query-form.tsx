@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Search, RotateCcw, ChevronDown, Info, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ type ValidationRule = {
 };
 
 const reserved = new Set(["codigo_municipio"]);
+const pageSizeOptions = [25, 50, 100];
 
 const parameterHelp: Record<string, string> = {
   exercicio_orcamento: "Use o ano no formato yyyymm. Exemplo: 2024 -> 202400.",
@@ -119,6 +121,8 @@ export function QueryForm({
   selectedMunicipalityCode,
   selectedResource
 }: QueryFormProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const formRef = useRef<HTMLFormElement>(null);
   const [activeResource, setActiveResource] = useState(selectedResource);
   const [municipalityCode, setMunicipalityCode] = useState(selectedMunicipalityCode);
@@ -157,9 +161,89 @@ export function QueryForm({
     (p) => !p.required && !reserved.has(p.name)
   ) ?? [];
 
+  useEffect(() => {
+    setActiveResource(selectedResource);
+    setMunicipalityCode(selectedMunicipalityCode);
+    setLocalPage(page);
+    setLocalPageSize(pageSize);
+    setShowOptional(false);
+    setQuantity(
+      initialFilters.find((f) => f.key === "quantidade")?.value ?? String(pageSize)
+    );
+    setOffset(
+      initialFilters.find((f) => f.key === "deslocamento")?.value ?? String((page - 1) * pageSize)
+    );
+    setDateRanges(() => {
+      const entries: Record<string, { start: string; end: string }> = {};
+      initialFilters.forEach((filter) => {
+        if (getValidationRule(filter.key)?.kind === "interval-date") {
+          entries[filter.key] = parseIntervalDateValue(filter.value);
+        }
+      });
+      return entries;
+    });
+  }, [initialFilters, page, pageSize, selectedMunicipalityCode, selectedResource]);
+
   function syncPagination(nextPage: number, nextPageSize: number) {
     setQuantity(String(nextPageSize));
     setOffset(String(Math.max(0, (nextPage - 1) * nextPageSize)));
+  }
+
+  function updatePageSize(nextPageSize: number) {
+    setLocalPage(1);
+    setLocalPageSize(nextPageSize);
+    syncPagination(1, nextPageSize);
+  }
+
+  function navigateWithParams(params: URLSearchParams) {
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
+
+  function buildResourceParams(resourceKey: string) {
+    const nextResource = resources.find((resource) => resource.key === resourceKey);
+    const params = new URLSearchParams();
+
+    if (!nextResource) return params;
+
+    params.set("resource", resourceKey);
+    params.set("page", "1");
+    params.set("pageSize", String(localPageSize));
+
+    if (municipalityCode) {
+      params.set("codigo_municipio", municipalityCode);
+    }
+
+    const requiredNames = new Set(
+      nextResource.queryParameters.map((parameter) => parameter.name)
+    );
+
+    if (requiredNames.has("quantidade")) {
+      params.set("quantidade", String(localPageSize));
+    }
+
+    if (requiredNames.has("deslocamento")) {
+      params.set("deslocamento", "0");
+    }
+
+    return params;
+  }
+
+  function getEffectivePageSize(formData?: FormData) {
+    const rawQuantity = formData?.get("quantidade");
+    const rawPageSize = formData?.get("pageSize");
+    const quantityValue = typeof rawQuantity === "string" ? Number(rawQuantity) : Number.NaN;
+    const pageSizeValue = typeof rawPageSize === "string" ? Number(rawPageSize) : Number.NaN;
+
+    if (Number.isFinite(quantityValue) && quantityValue > 0) {
+      return Math.min(100, Math.max(1, quantityValue));
+    }
+
+    if (Number.isFinite(pageSizeValue) && pageSizeValue > 0) {
+      return Math.min(100, Math.max(1, pageSizeValue));
+    }
+
+    return localPageSize;
   }
 
   function submitForm() {
@@ -177,18 +261,61 @@ export function QueryForm({
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    const requiredNames = new Set(requiredParameters.map((p) => p.name));
-    const formData = new FormData(event.currentTarget);
+    event.preventDefault();
 
-    for (const element of Array.from(event.currentTarget.elements)) {
-      if (!(element instanceof HTMLInputElement)) continue;
-      if (!element.name || requiredNames.has(element.name)) continue;
-      if (element.type === "hidden") continue;
-      const value = formData.get(element.name);
-      if (typeof value === "string" && value.trim() === "") {
-        element.disabled = true;
-      }
+    const formData = new FormData(event.currentTarget);
+    const params = new URLSearchParams();
+    const resourceValue = String(formData.get("resource") ?? activeResource).trim();
+    const targetResource = resources.find((resource) => resource.key === resourceValue) ?? selectedMetadata;
+    const allowedParameterNames = new Set(
+      (targetResource?.queryParameters ?? []).map((parameter) => parameter.name)
+    );
+    const pageValue = String(formData.get("page") ?? localPage).trim();
+    const effectivePageSize = getEffectivePageSize(formData);
+    const pageSizeValue = String(effectivePageSize);
+    const municipalityValue = String(
+      formData.get("codigo_municipio") ?? municipalityCode
+    ).trim();
+
+    if (resourceValue) {
+      params.set("resource", resourceValue);
     }
+
+    params.set("page", pageValue || String(localPage));
+    params.set("pageSize", pageSizeValue || String(localPageSize));
+
+    if (municipalityValue) {
+      params.set("codigo_municipio", municipalityValue);
+    }
+
+    for (const [key, value] of formData.entries()) {
+      if (
+        key === "resource" ||
+        key === "page" ||
+        key === "pageSize" ||
+        key === "codigo_municipio"
+      ) {
+        continue;
+      }
+
+      if (!allowedParameterNames.has(key)) {
+        continue;
+      }
+
+      const normalizedValue = typeof value === "string" ? value.trim() : "";
+      if (!normalizedValue) {
+        continue;
+      }
+
+      if (key === "quantidade") {
+        params.set(key, pageSizeValue);
+        continue;
+      }
+
+      params.set(key, normalizedValue);
+    }
+
+    navigateWithParams(params);
   }
 
   function renderInput(parameter: QueryParameterOption, isOptional = false) {
@@ -214,7 +341,7 @@ export function QueryForm({
             type="hidden"
             name={parameter.name}
             value={hiddenValue}
-            disabled={isOptional && hiddenValue === ""}
+            disabled={hiddenValue === ""}
             readOnly
           />
           <div className="grid gap-3 sm:grid-cols-2">
@@ -352,8 +479,13 @@ export function QueryForm({
               name="resource"
               value={activeResource}
               onChange={(e) => {
-                setActiveResource(e.target.value);
-                setTimeout(submitForm, 0);
+                const nextResource = e.target.value;
+                setActiveResource(nextResource);
+                setLocalPage(1);
+                setQuantity(String(localPageSize));
+                setOffset("0");
+                setDateRanges({});
+                navigateWithParams(buildResourceParams(nextResource));
               }}
               className="block w-full appearance-none rounded-md border bg-card px-3 py-2.5 pr-10 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
@@ -393,7 +525,7 @@ export function QueryForm({
       </div>
 
       {/* Pagination */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,180px)_1fr]">
         <div className="space-y-1.5">
           <label htmlFor="page" className="block text-sm font-medium text-foreground">
             Pagina
@@ -413,27 +545,14 @@ export function QueryForm({
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label htmlFor="pageSize" className="block text-sm font-medium text-foreground">
-            Por pagina
-          </label>
-          <input
-            id="pageSize"
-            name="pageSize"
-            type="number"
-            min={1}
-            max={100}
-            value={localPageSize}
-            onChange={(e) => {
-              const nextPageSize = Math.min(100, Math.max(1, Number(e.target.value) || 25));
-              setLocalPageSize(nextPageSize);
-              syncPagination(localPage, nextPageSize);
-            }}
-            className="block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
+        <input
+          name="pageSize"
+          type="hidden"
+          value={localPageSize}
+          readOnly
+        />
 
-        <div className="col-span-2 flex items-end gap-2">
+        <div className="flex items-end gap-2">
           <button
             type="submit"
             className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -489,22 +608,36 @@ export function QueryForm({
               if (p.name === "quantidade") {
                 return (
                   <div key={p.name} className="space-y-1.5">
-                    <label htmlFor="quantidade" className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                       {p.name}
                       <span className="rounded bg-warning/20 px-1.5 py-0.5 text-xs font-medium text-warning">
                         Obrigatorio
                       </span>
                     </label>
                     <input
-                      id="quantidade"
                       name={p.name}
-                      type="number"
-                      min={1}
-                      max={100}
+                      type="hidden"
                       value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      className="block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      readOnly
                     />
+                    <div className="grid grid-cols-3 gap-2">
+                      {pageSizeOptions.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => updatePageSize(option)}
+                          className={cn(
+                            "rounded-md border px-3 py-2 text-sm font-medium transition-colors",
+                            quantity === String(option)
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "bg-card text-foreground hover:bg-secondary"
+                          )}
+                          aria-pressed={quantity === String(option)}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
                     <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                       <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
                       <span>{renderHelpText(p)}</span>

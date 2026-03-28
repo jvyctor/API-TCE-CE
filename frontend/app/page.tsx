@@ -82,7 +82,7 @@ function getApiBaseUrl() {
 async function getCatalog(): Promise<ResourceCatalog> {
   try {
     const response = await fetch(`${getApiBaseUrl()}/api/resources`, {
-      cache: "no-store",
+      next: { revalidate: 3600 },
     });
     if (!response.ok) return defaultCatalog;
     return (await response.json()) as ResourceCatalog;
@@ -95,7 +95,7 @@ async function getMunicipalities(): Promise<MunicipalityRecord[]> {
   try {
     const response = await fetch(
       `${getApiBaseUrl()}/api/resources/municipios?page=1&pageSize=250`,
-      { cache: "no-store" }
+      { next: { revalidate: 3600 } }
     );
     if (!response.ok) return [];
     const payload = (await response.json()) as PaginatedEnvelope;
@@ -180,6 +180,39 @@ function extractDynamicFilters(
     .filter((f) => f.key !== "");
 }
 
+function filterResourceFilters(
+  filters: Array<{ key: string; value: string }>,
+  resource: ResourceDescriptor | null
+) {
+  if (!resource) return [];
+
+  const allowedParameters = new Set(
+    resource.queryParameters.map((parameter) => parameter.name)
+  );
+
+  return filters.filter((filter) => allowedParameters.has(filter.key));
+}
+
+function getMissingRequiredParameters(
+  resource: ResourceDescriptor | null,
+  filters: Array<{ key: string; value: string }>,
+  municipalityCode: string
+) {
+  if (!resource) return [];
+
+  const filterMap = new Map(
+    filters.map((filter) => [filter.key, filter.value.trim()])
+  );
+
+  return resource.requiredQueryParameters.filter((parameterName) => {
+    if (parameterName === "codigo_municipio") {
+      return municipalityCode.trim() === "";
+    }
+
+    return (filterMap.get(parameterName) ?? "") === "";
+  });
+}
+
 export default async function Home({
   searchParams,
 }: {
@@ -205,21 +238,30 @@ export default async function Home({
   const pageSize =
     Number.parseInt(normalizeParam(resolvedSearchParams.pageSize, "25"), 10) ||
     25;
-  const dynamicFilters = extractDynamicFilters(resolvedSearchParams);
+  const requestFilters = extractDynamicFilters(resolvedSearchParams);
 
   const selectedResource =
     catalog.resources.find((r) => r.key === selectedResourceKey) ?? null;
+  const dynamicFilters = filterResourceFilters(requestFilters, selectedResource);
+  const missingRequiredParameters = getMissingRequiredParameters(
+    selectedResource,
+    dynamicFilters,
+    selectedMunicipalityCode
+  );
   const selectedMunicipality =
     municipalities.find(
       (m) => m.codigo_municipio === selectedMunicipalityCode
     ) ?? null;
 
-  const { payload, error } = await getResourcePage(selectedResourceKey, page, pageSize, [
-    ...dynamicFilters,
-    ...(selectedMunicipalityCode
-      ? [{ key: "codigo_municipio", value: selectedMunicipalityCode }]
-      : []),
-  ]);
+  const { payload, error } =
+    missingRequiredParameters.length === 0
+      ? await getResourcePage(selectedResourceKey, page, pageSize, [
+          ...dynamicFilters,
+          ...(selectedMunicipalityCode
+            ? [{ key: "codigo_municipio", value: selectedMunicipalityCode }]
+            : []),
+        ])
+      : { payload: null, error: null };
 
   const hasDataAlert = Boolean(
     payload && payload.items.length > 0 && selectedMunicipality
@@ -260,6 +302,7 @@ export default async function Home({
 
               <div className="rounded-xl border bg-card p-6">
                 <QueryForm
+                  key={selectedResourceKey || "default-resource"}
                   initialFilters={dynamicFilters}
                   municipalities={municipalities}
                   page={page}
@@ -278,6 +321,16 @@ export default async function Home({
                 detail={error.detail}
                 status={error.status}
               />
+            )}
+
+            {selectedResource && missingRequiredParameters.length > 0 && (
+              <div className="rounded-lg border border-warning/40 bg-warning/5 p-4 text-sm text-foreground">
+                Preencha os campos obrigatorios para consultar este endpoint:
+                {" "}
+                <span className="font-medium">
+                  {missingRequiredParameters.join(", ")}
+                </span>
+              </div>
             )}
 
             {/* Results Section */}

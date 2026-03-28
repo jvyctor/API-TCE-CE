@@ -18,4 +18,6 @@ public sealed class TceCeResourceDefinition
     public TceCeQueryParameterDefinition[] QueryParameters { get; init; } = [];
 
     public bool RequiresAuthentication { get; init; }
+
+    public TceCePaginationMode PaginationMode { get; init; } = TceCePaginationMode.Auto;
 }

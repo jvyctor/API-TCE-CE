@@ -22,6 +22,13 @@ type PaginatedEnvelope = {
   expiresAtUtc: string;
 };
 
+function readBooleanMetadata(
+  metadata: Record<string, unknown>,
+  key: string
+) {
+  return metadata[key] === true;
+}
+
 type ResultsPanelProps = {
   payload: PaginatedEnvelope | null;
   filters: FilterPair[];
@@ -51,7 +58,13 @@ function buildQueryString(
   return `/?${query.toString()}`;
 }
 
-function JsonBlock({ data, index }: { data: Record<string, unknown>; index: number }) {
+function JsonBlock({
+  data,
+  recordNumber,
+}: {
+  data: Record<string, unknown>;
+  recordNumber: number;
+}) {
   const [expanded, setExpanded] = useState(true);
   const [copied, setCopied] = useState(false);
   const jsonString = JSON.stringify(data, null, 2);
@@ -63,28 +76,38 @@ function JsonBlock({ data, index }: { data: Record<string, unknown>; index: numb
   }
 
   return (
-    <div className="rounded-lg border bg-card">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-secondary/50"
-        aria-expanded={expanded}
-      >
-        <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <FileJson className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          Registro {index + 1}
-        </span>
-        <ChevronDown
-          className={cn(
-            "h-4 w-4 text-muted-foreground transition-transform",
-            expanded && "rotate-180"
-          )}
-          aria-hidden="true"
-        />
-      </button>
+    <article className="overflow-hidden rounded-xl border-2 border-border bg-card shadow-sm">
+      <div className="border-b bg-secondary/30 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 text-sm font-medium text-foreground">
+            <span className="inline-flex h-9 min-w-9 items-center justify-center rounded-full bg-primary px-2 text-sm font-semibold text-primary-foreground">
+              {recordNumber}
+            </span>
+            <span className="flex items-center gap-2 text-base font-semibold">
+              <FileJson className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              Registro {recordNumber}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+            aria-expanded={expanded}
+          >
+            {expanded ? "Ocultar" : "Mostrar"}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform",
+                expanded && "rotate-180"
+              )}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
+      </div>
 
       {expanded && (
-        <div className="relative border-t">
+        <div className="relative">
           <button
             onClick={handleCopy}
             className="absolute right-2 top-2 flex items-center gap-1.5 rounded-md bg-secondary px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
@@ -107,7 +130,7 @@ function JsonBlock({ data, index }: { data: Record<string, unknown>; index: numb
           </pre>
         </div>
       )}
-    </div>
+    </article>
   );
 }
 
@@ -124,7 +147,11 @@ export function ResultsPanel({
   }
 
   const hasPreviousPage = payload.page > 1;
-  const hasNextPage = payload.page < payload.totalPages;
+  const hasMorePages = readBooleanMetadata(payload.metadata, "hasMorePages");
+  const totalItemsExact = !readBooleanMetadata(payload.metadata, "sourcePagination")
+    || readBooleanMetadata(payload.metadata, "totalItemsExact");
+  const hasNextPage = hasMorePages || payload.page < payload.totalPages;
+  const firstRecordNumber = (payload.page - 1) * payload.pageSize + 1;
 
   if (payload.items.length === 0) {
     return (
@@ -148,13 +175,17 @@ export function ResultsPanel({
             Resultados
           </h2>
           <p className="text-sm text-muted-foreground">
-            {payload.totalItems.toLocaleString("pt-BR")} registros encontrados
+            {totalItemsExact
+              ? `${payload.totalItems.toLocaleString("pt-BR")} registros encontrados`
+              : `${(firstRecordNumber + payload.items.length - 1).toLocaleString("pt-BR")}+ registros encontrados`}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
-            Pagina {payload.page} de {payload.totalPages || 1}
+            {totalItemsExact
+              ? `Pagina ${payload.page} de ${payload.totalPages || 1}`
+              : `Pagina ${payload.page}`}
           </span>
           {filters.map((f) => (
             <span
@@ -168,16 +199,22 @@ export function ResultsPanel({
       </div>
 
       {/* Results */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {payload.items.map((item, index) => (
-          <JsonBlock key={`${payload.resource}-${index}`} data={item} index={index} />
+          <JsonBlock
+            key={`${payload.resource}-${index}`}
+            data={item}
+            recordNumber={firstRecordNumber + index}
+          />
         ))}
       </div>
 
       {/* Pagination */}
       <nav aria-label="Paginacao dos resultados" className="flex items-center justify-between border-t pt-4">
         <p className="text-sm text-muted-foreground">
-          Exibindo {((payload.page - 1) * payload.pageSize) + 1} a {Math.min(payload.page * payload.pageSize, payload.totalItems)} de {payload.totalItems}
+          {totalItemsExact
+            ? `Exibindo ${((payload.page - 1) * payload.pageSize) + 1} a ${Math.min(payload.page * payload.pageSize, payload.totalItems)} de ${payload.totalItems}`
+            : `Exibindo ${firstRecordNumber} a ${firstRecordNumber + payload.items.length - 1}`}
         </p>
 
         <div className="flex items-center gap-2">

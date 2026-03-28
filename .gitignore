@@ -9,3 +9,6 @@ TestResults/
 *.suo
 *.cache
 *.log
+.artifacts/
+.dotnet/
+.nuget/

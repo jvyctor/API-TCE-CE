@@ -150,7 +150,7 @@ function JsonBlock({
               </>
             )}
           </button>
-          <pre className="overflow-x-auto whitespace-pre-wrap break-words bg-background/55 p-4 pr-24 font-mono text-xs leading-7 text-foreground">
+          <pre className="overflow-x-auto whitespace-pre-wrap break-words bg-background/55 p-4 pr-24 font-mono text-sm leading-7 text-foreground">
             {jsonString}
           </pre>
         </div>

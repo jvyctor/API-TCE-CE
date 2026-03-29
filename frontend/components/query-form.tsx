@@ -124,11 +124,14 @@ export function QueryForm({
   const router = useRouter();
   const pathname = usePathname();
   const formRef = useRef<HTMLFormElement>(null);
+  const shouldHighlightValidationRef = useRef(true);
   const [activeResource, setActiveResource] = useState(selectedResource);
   const [municipalityCode, setMunicipalityCode] = useState(selectedMunicipalityCode);
   const [localPage, setLocalPage] = useState(page);
   const [localPageSize, setLocalPageSize] = useState(pageSize);
   const [showOptional, setShowOptional] = useState(false);
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);
+  const [dateRangeErrors, setDateRangeErrors] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(
     initialFilters.find((f) => f.key === "quantidade")?.value ?? String(pageSize)
   );
@@ -160,13 +163,14 @@ export function QueryForm({
   const optionalParameters = selectedMetadata?.queryParameters.filter(
     (p) => !p.required && !reserved.has(p.name)
   ) ?? [];
-
   useEffect(() => {
     setActiveResource(selectedResource);
     setMunicipalityCode(selectedMunicipalityCode);
     setLocalPage(page);
     setLocalPageSize(pageSize);
     setShowOptional(false);
+    setInvalidFields([]);
+    setDateRangeErrors({});
     setQuantity(
       initialFilters.find((f) => f.key === "quantidade")?.value ?? String(pageSize)
     );
@@ -183,6 +187,44 @@ export function QueryForm({
       return entries;
     });
   }, [initialFilters, page, pageSize, selectedMunicipalityCode, selectedResource]);
+
+  function clearInvalidField(fieldName: string) {
+    setInvalidFields((current) => current.filter((entry) => entry !== fieldName));
+  }
+
+  function setDateRangeError(fieldName: string, message: string | null) {
+    setDateRangeErrors((current) => {
+      if (!message) {
+        const next = { ...current };
+        delete next[fieldName];
+        return next;
+      }
+
+      return {
+        ...current,
+        [fieldName]: message
+      };
+    });
+  }
+
+  function validateRequiredFields(formData: FormData, municipalityValue: string) {
+    const missingFields = requiredParameters
+      .map((parameter) => parameter.name)
+      .filter((parameterName) => {
+        if (parameterName === "codigo_municipio") {
+          return municipalityValue === "";
+        }
+
+        const value = formData.get(parameterName);
+        return typeof value !== "string" || value.trim() === "";
+      });
+
+    if (shouldHighlightValidationRef.current) {
+      setInvalidFields(missingFields);
+    }
+
+    return missingFields.length === 0;
+  }
 
   function syncPagination(nextPage: number, nextPageSize: number) {
     setQuantity(String(nextPageSize));
@@ -247,6 +289,7 @@ export function QueryForm({
   }
 
   function submitForm() {
+    shouldHighlightValidationRef.current = false;
     formRef.current?.requestSubmit();
   }
 
@@ -276,6 +319,17 @@ export function QueryForm({
     const municipalityValue = String(
       formData.get("codigo_municipio") ?? municipalityCode
     ).trim();
+
+    const hasInvalidDateRange = Object.values(dateRanges).some(
+      ({ start, end }) => Boolean(start && end && end < start)
+    );
+
+    const isValid = validateRequiredFields(formData, municipalityValue);
+    shouldHighlightValidationRef.current = true;
+
+    if (!isValid || hasInvalidDateRange) {
+      return;
+    }
 
     if (resourceValue) {
       params.set("resource", resourceValue);
@@ -322,6 +376,8 @@ export function QueryForm({
     const validationRule = getValidationRule(parameter.name);
     const id = `field-${parameter.name}`;
     const helpId = `help-${parameter.name}`;
+    const isInvalid = invalidFields.includes(parameter.name);
+    const dateRangeError = dateRangeErrors[parameter.name];
 
     if (validationRule?.kind === "interval-date") {
       const currentRange = dateRanges[parameter.name] ?? parseIntervalDateValue(filterMap.get(parameter.name) ?? "");
@@ -356,19 +412,30 @@ export function QueryForm({
                 required={!isOptional}
                 max={currentRange.end || undefined}
                 aria-describedby={helpId}
+                aria-invalid={isInvalid}
                 className={cn(
                   "block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground",
-                  "transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  "transition-colors focus:outline-none focus:ring-2",
+                  isInvalid
+                    ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                    : "focus:border-primary focus:ring-primary/20"
                 )}
                 onChange={(e) => {
                   const nextStart = e.currentTarget.value;
+                  clearInvalidField(parameter.name);
                   setDateRanges((current) => {
                     const previous = current[parameter.name] ?? { start: "", end: "" };
+                    const nextEnd = previous.end && nextStart && previous.end < nextStart ? previous.end : previous.end;
+                    const nextError = previous.end && nextStart && previous.end < nextStart
+                      ? "A data final nao pode ser menor que a data inicial."
+                      : null;
+                    setDateRangeError(parameter.name, nextError);
+
                     return {
                       ...current,
                       [parameter.name]: {
                         start: nextStart,
-                        end: previous.end && nextStart && previous.end < nextStart ? "" : previous.end
+                        end: nextEnd
                       }
                     };
                   });
@@ -386,12 +453,23 @@ export function QueryForm({
                 value={currentRange.end}
                 min={currentRange.start || undefined}
                 aria-describedby={helpId}
+                aria-invalid={isInvalid}
                 className={cn(
                   "block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground",
-                  "transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  "transition-colors focus:outline-none focus:ring-2",
+                  isInvalid
+                    ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                    : "focus:border-primary focus:ring-primary/20"
                 )}
                 onChange={(e) => {
                   const nextEnd = e.currentTarget.value;
+                  clearInvalidField(parameter.name);
+                  setDateRangeError(
+                    parameter.name,
+                    currentRange.start && nextEnd && nextEnd < currentRange.start
+                      ? "A data final nao pode ser menor que a data inicial."
+                      : null
+                  );
                   setDateRanges((current) => ({
                     ...current,
                     [parameter.name]: {
@@ -407,6 +485,12 @@ export function QueryForm({
             <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
             <span>{renderHelpText(parameter)}</span>
           </p>
+          {isInvalid && (
+            <p className="text-xs font-medium text-destructive">Preencha este campo obrigatorio para consultar.</p>
+          )}
+          {dateRangeError && (
+            <p className="text-xs font-medium text-destructive">{dateRangeError}</p>
+          )}
           <p className="text-xs text-primary">Selecione uma data unica ou um intervalo pelo calendario.</p>
         </div>
       );
@@ -432,9 +516,13 @@ export function QueryForm({
           pattern={validationRule?.pattern}
           title={validationRule?.title}
           aria-describedby={helpId}
+          aria-invalid={isInvalid}
           className={cn(
             "block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground",
-            "transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
+            "transition-colors focus:outline-none focus:ring-2",
+            isInvalid
+              ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+              : "focus:border-primary focus:ring-primary/20",
             "disabled:cursor-not-allowed disabled:opacity-50"
           )}
           onInvalid={(e) => {
@@ -445,6 +533,7 @@ export function QueryForm({
           }}
           onInput={(e) => e.currentTarget.setCustomValidity("")}
           onChange={(e) => {
+            clearInvalidField(parameter.name);
             e.currentTarget.value = applyVisualMask(e.currentTarget.value, validationRule);
           }}
         />
@@ -454,6 +543,9 @@ export function QueryForm({
         </p>
         {validationRule && (
           <p className="text-xs text-primary">{validationRule.example}</p>
+        )}
+        {isInvalid && (
+          <p className="text-xs font-medium text-destructive">Preencha este campo obrigatorio para consultar.</p>
         )}
       </div>
     );
@@ -465,116 +557,157 @@ export function QueryForm({
       method="get"
       ref={formRef}
       onSubmit={handleSubmit}
-      className="space-y-6"
+      noValidate
+      className="space-y-8"
     >
-      {/* Primary Selection */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <label htmlFor="resource" className="block text-sm font-medium text-foreground">
-            Endpoint
-          </label>
-          <div className="relative">
-            <select
-              id="resource"
-              name="resource"
-              value={activeResource}
-              onChange={(e) => {
-                const nextResource = e.target.value;
-                setActiveResource(nextResource);
-                setLocalPage(1);
-                setQuantity(String(localPageSize));
-                setOffset("0");
-                setDateRanges({});
-                navigateWithParams(buildResourceParams(nextResource));
-              }}
-              className="block w-full appearance-none rounded-md border bg-card px-3 py-2.5 pr-10 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              {resources.map((r) => (
-                <option key={r.key} value={r.key}>{r.key}</option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+      <section className="grid gap-6 border-b border-border/60 pb-7 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <div className="inline-flex rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
+              Fluxo de consulta
+            </div>
+            <div>
+              <h3 className="text-[1.45rem] font-extrabold tracking-[-0.04em] text-foreground">
+                Configure o endpoint antes de consultar
+              </h3>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">
+                Escolha o endpoint, defina o municipio e preencha os filtros obrigatorios. A navegacao da consulta fica concentrada no mesmo card, sem repetir informacoes do painel lateral.
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-1.5">
-          <label htmlFor="municipality" className="block text-sm font-medium text-foreground">
-            Municipio
-          </label>
-          <div className="relative">
-            <select
-              id="municipality"
-              name="codigo_municipio"
-              value={municipalityCode}
-              onChange={(e) => {
-                setMunicipalityCode(e.target.value);
-                setTimeout(submitForm, 0);
-              }}
-              className="block w-full appearance-none rounded-md border bg-card px-3 py-2.5 pr-10 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="">Selecione um municipio</option>
-              {municipalities.map((m) => (
-                <option key={m.codigo_municipio} value={m.codigo_municipio}>
-                  {m.nome_municipio} ({m.codigo_municipio})
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="resource" className="block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Endpoint
+              </label>
+              <div className="relative">
+                <select
+                  id="resource"
+                  name="resource"
+                  value={activeResource}
+                  onChange={(e) => {
+                    const nextResource = e.target.value;
+                    setActiveResource(nextResource);
+                    setLocalPage(1);
+                    setQuantity(String(localPageSize));
+                    setOffset("0");
+                    setDateRanges({});
+                    navigateWithParams(buildResourceParams(nextResource));
+                  }}
+                  className="block w-full appearance-none rounded-[20px] border border-border/75 bg-card/80 px-4 py-3.5 pr-10 text-sm font-medium text-foreground shadow-[0_6px_20px_hsl(190_18%_30%_/_0.05)] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  {resources.map((r) => (
+                    <option key={r.key} value={r.key}>{r.key}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="municipality" className="block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Municipio
+              </label>
+              <div className="relative">
+                <select
+                  id="municipality"
+                  name="codigo_municipio"
+                  value={municipalityCode}
+                  onChange={(e) => {
+                    setMunicipalityCode(e.target.value);
+                    clearInvalidField("codigo_municipio");
+                    setTimeout(submitForm, 0);
+                  }}
+                  className="block w-full appearance-none rounded-[20px] border border-border/75 bg-card/80 px-4 py-3.5 pr-10 text-sm font-medium text-foreground shadow-[0_6px_20px_hsl(190_18%_30%_/_0.05)] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">Selecione um municipio</option>
+                  {municipalities.map((m) => (
+                    <option key={m.codigo_municipio} value={m.codigo_municipio}>
+                      {m.nome_municipio} ({m.codigo_municipio})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Pagination */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,180px)_1fr]">
-        <div className="space-y-1.5">
-          <label htmlFor="page" className="block text-sm font-medium text-foreground">
-            Pagina
-          </label>
-          <input
-            id="page"
-            name="page"
-            type="number"
-            min={1}
-            value={localPage}
-            onChange={(e) => {
-              const nextPage = Math.max(1, Number(e.target.value) || 1);
-              setLocalPage(nextPage);
-              syncPagination(nextPage, localPageSize);
-            }}
-            className="block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
         </div>
 
-        <input
-          name="pageSize"
-          type="hidden"
-          value={localPageSize}
-          readOnly
-        />
+        <aside className="rounded-[26px] border border-border/75 bg-background/60 p-4 shadow-[0_10px_30px_hsl(190_20%_30%_/_0.05)]">
+          <div className="grid gap-4">
+            <div className="rounded-[22px] border border-primary/10 bg-[linear-gradient(180deg,hsl(var(--primary)/0.07),hsl(var(--background)/0.85))] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Navegacao da consulta
+              </div>
+              <p className="mt-2 text-xs leading-6 text-muted-foreground">
+                Ajuste a pagina atual e quantos itens cada chamada deve retornar.
+              </p>
+              <div className="mt-3 grid gap-4 sm:grid-cols-[120px_1fr] lg:grid-cols-1">
+                <div className="space-y-1.5">
+                  <label htmlFor="page" className="block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Pagina
+                  </label>
+                  <input
+                    id="page"
+                    name="page"
+                    type="number"
+                    min={1}
+                    value={localPage}
+                    onChange={(e) => {
+                      const nextPage = Math.max(1, Number(e.target.value) || 1);
+                      setLocalPage(nextPage);
+                      syncPagination(nextPage, localPageSize);
+                    }}
+                    className="block w-full rounded-[18px] border border-border/75 bg-card/85 px-4 py-3 text-sm font-medium text-foreground shadow-[0_4px_16px_hsl(190_18%_30%_/_0.05)] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
 
-        <div className="flex items-end gap-2">
-          <button
-            type="submit"
-            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <Search className="h-4 w-4" aria-hidden="true" />
-            Consultar
-          </button>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="flex items-center justify-center gap-2 rounded-md border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <RotateCcw className="h-4 w-4" aria-hidden="true" />
-            <span className="sr-only sm:not-sr-only">Limpar</span>
-          </button>
-        </div>
-      </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Itens por consulta
+                  </div>
+                  <input
+                    name="pageSize"
+                    type="hidden"
+                    value={localPageSize}
+                    readOnly
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    {pageSizeOptions.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => updatePageSize(option)}
+                        className={cn(
+                          "rounded-[18px] border px-3 py-3 text-sm font-semibold transition-colors",
+                          quantity === String(option)
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                            : "border-border/75 bg-card/80 text-foreground hover:bg-secondary"
+                        )}
+                        aria-pressed={quantity === String(option)}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
 
       {/* Required Fields */}
       {requiredParameters.length > 0 && (
-        <fieldset className="space-y-4 rounded-lg border bg-card/50 p-4">
-          <legend className="flex items-center gap-2 px-2 text-sm font-medium text-foreground">
+        <fieldset
+          className={cn(
+            "space-y-5 rounded-[26px] border border-border/75 bg-background/55 p-5 shadow-[0_10px_30px_hsl(190_20%_30%_/_0.04)] transition-colors",
+            invalidFields.length > 0 && "border-destructive bg-destructive/5"
+          )}
+        >
+          <legend className="flex items-center gap-2 px-2 text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
             <AlertCircle className="h-4 w-4 text-warning" aria-hidden="true" />
             Campos obrigatorios ({requiredParameters.length})
           </legend>
@@ -582,27 +715,7 @@ export function QueryForm({
           <div className="grid gap-4 sm:grid-cols-2">
             {requiredParameters.map((p) => {
               if (p.name === "codigo_municipio") {
-                return (
-                  <div key={p.name} className="space-y-1.5">
-                    <label className="block text-sm font-medium text-foreground">
-                      {p.name}
-                      <span className="ml-2 rounded bg-warning/20 px-1.5 py-0.5 text-xs font-medium text-warning">
-                        Obrigatorio
-                      </span>
-                    </label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={municipalityCode}
-                      placeholder="Selecione um municipio acima"
-                      className="block w-full rounded-md border bg-secondary px-3 py-2.5 text-sm text-muted-foreground"
-                    />
-                    <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                      <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
-                      <span>Preenchido automaticamente ao selecionar o municipio.</span>
-                    </p>
-                  </div>
-                );
+                return null;
               }
 
               if (p.name === "quantidade") {
@@ -620,24 +733,6 @@ export function QueryForm({
                       value={quantity}
                       readOnly
                     />
-                    <div className="grid grid-cols-3 gap-2">
-                      {pageSizeOptions.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => updatePageSize(option)}
-                          className={cn(
-                            "rounded-md border px-3 py-2 text-sm font-medium transition-colors",
-                            quantity === String(option)
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "bg-card text-foreground hover:bg-secondary"
-                          )}
-                          aria-pressed={quantity === String(option)}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
                     <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                       <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
                       <span>{renderHelpText(p)}</span>
@@ -661,13 +756,25 @@ export function QueryForm({
                       type="number"
                       min={0}
                       value={offset}
-                      onChange={(e) => setOffset(e.target.value)}
-                      className="block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      onChange={(e) => {
+                        clearInvalidField(p.name);
+                        setOffset(e.target.value);
+                      }}
+                      aria-invalid={invalidFields.includes(p.name)}
+                      className={cn(
+                        "block w-full rounded-md border bg-card px-3 py-2.5 text-sm text-foreground transition-colors focus:outline-none focus:ring-2",
+                        invalidFields.includes(p.name)
+                          ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                          : "focus:border-primary focus:ring-primary/20"
+                      )}
                     />
                     <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                       <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
                       <span>{renderHelpText(p)}</span>
                     </p>
+                    {invalidFields.includes(p.name) && (
+                      <p className="text-xs font-medium text-destructive">Preencha este campo obrigatorio para consultar.</p>
+                    )}
                   </div>
                 );
               }
@@ -680,11 +787,11 @@ export function QueryForm({
 
       {/* Optional Fields */}
       {optionalParameters.length > 0 && (
-        <div className="rounded-lg border">
+        <div className="overflow-hidden rounded-[26px] border border-border/75 bg-background/50 shadow-[0_10px_30px_hsl(190_20%_30%_/_0.04)]">
           <button
             type="button"
             onClick={() => setShowOptional(!showOptional)}
-            className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-secondary/50"
+            className="flex w-full items-center justify-between px-5 py-4 text-left text-sm font-semibold uppercase tracking-[0.18em] text-foreground transition-colors hover:bg-secondary/40"
             aria-expanded={showOptional}
           >
             <span>Campos opcionais ({optionalParameters.length})</span>
@@ -698,7 +805,7 @@ export function QueryForm({
           </button>
 
           {showOptional && (
-            <div className="border-t bg-card/50 p-4">
+            <div className="border-t border-border/70 bg-background/60 p-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 {optionalParameters.slice(0, 6).map((p) => (
                   <div key={p.name}>{renderInput(p, true)}</div>
@@ -708,6 +815,35 @@ export function QueryForm({
           )}
         </div>
       )}
+
+      <div className="flex flex-col gap-4 rounded-[26px] border border-border/75 bg-[linear-gradient(180deg,hsl(0_0%_100%_/_0.72),hsl(var(--background)/0.92))] px-5 py-4 shadow-[0_14px_40px_hsl(190_18%_28%_/_0.06)] dark:bg-[linear-gradient(180deg,hsl(var(--card)/0.86),hsl(var(--background)/0.92))] dark:shadow-[0_18px_44px_hsl(200_30%_2%_/_0.28)] sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <div className="text-sm font-semibold text-foreground">
+            Consulta pronta para executar
+          </div>
+          <p className="text-xs leading-6 text-muted-foreground">
+            Use os filtros acima e consulte com o endpoint, municipio e navegacao centralizados no mesmo fluxo.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleReset}
+          className="flex items-center justify-center gap-2 rounded-[20px] border border-border/75 bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:min-w-32"
+        >
+          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+          <span>Limpar</span>
+        </button>
+        <button
+          type="submit"
+          onClick={() => {
+            shouldHighlightValidationRef.current = true;
+          }}
+          className="flex items-center justify-center gap-2 rounded-[20px] bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_12px_28px_hsl(var(--primary)/0.28)] transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:min-w-44"
+        >
+          <Search className="h-4 w-4" aria-hidden="true" />
+          Consultar
+        </button>
+      </div>
     </form>
   );
 }

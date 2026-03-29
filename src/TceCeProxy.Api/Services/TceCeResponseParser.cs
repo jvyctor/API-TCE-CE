@@ -5,6 +5,7 @@ namespace TceCeProxy.Api.Services;
 internal static class TceCeResponseParser
 {
     private static readonly string[] CandidateCollectionProperties = ["data", "items", "results", "records"];
+    private static readonly string[] CandidateCountProperties = ["total", "count", "length"];
 
     public static (IReadOnlyList<JsonObject> Items, JsonObject Metadata) Normalize(JsonNode root)
     {
@@ -34,9 +35,66 @@ internal static class TceCeResponseParser
 
                 return (ToObjectList(array), metadata);
             }
+
+            if (obj[property] is JsonObject nestedObject)
+            {
+                var nestedNormalization = NormalizeNestedCollection(property, obj, nestedObject);
+                if (nestedNormalization is not null)
+                {
+                    return nestedNormalization.Value;
+                }
+            }
         }
 
         return ([obj.DeepClone().AsObject()], new JsonObject());
+    }
+
+    private static (IReadOnlyList<JsonObject> Items, JsonObject Metadata)? NormalizeNestedCollection(
+        string propertyName,
+        JsonObject rootObject,
+        JsonObject nestedObject)
+    {
+        foreach (var nestedProperty in CandidateCollectionProperties)
+        {
+            if (nestedObject[nestedProperty] is not JsonArray nestedArray)
+            {
+                continue;
+            }
+
+            var metadata = new JsonObject();
+
+            foreach (var entry in rootObject)
+            {
+                if (!string.Equals(entry.Key, propertyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    metadata[entry.Key] = entry.Value?.DeepClone();
+                }
+            }
+
+            foreach (var entry in nestedObject)
+            {
+                if (!string.Equals(entry.Key, nestedProperty, StringComparison.OrdinalIgnoreCase))
+                {
+                    metadata[entry.Key] = entry.Value?.DeepClone();
+                }
+            }
+
+            CopyKnownCounts(nestedObject, metadata);
+            return (ToObjectList(nestedArray), metadata);
+        }
+
+        return null;
+    }
+
+    private static void CopyKnownCounts(JsonObject source, JsonObject metadata)
+    {
+        foreach (var propertyName in CandidateCountProperties)
+        {
+            if (source[propertyName] is JsonValue value)
+            {
+                metadata[propertyName] = value.DeepClone();
+            }
+        }
     }
 
     private static IReadOnlyList<JsonObject> ToObjectList(JsonArray array)

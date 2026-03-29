@@ -88,14 +88,17 @@ public static class TceCePagination
 
         var hasMorePages = items.Count == normalizedPageSize;
         var normalizedMetadata = metadata.DeepClone().AsObject();
+        var upstreamTotal = TryReadKnownTotal(normalizedMetadata);
         normalizedMetadata["hasMorePages"] = hasMorePages;
         normalizedMetadata["sourcePagination"] = true;
-        normalizedMetadata["totalItemsExact"] = !hasMorePages;
+        normalizedMetadata["totalItemsExact"] = upstreamTotal.HasValue || !hasMorePages;
         normalizedMetadata["paginationMode"] = paginationMode.ToString();
 
         var knownItemCount = ((normalizedPage - 1) * normalizedPageSize) + items.Count;
-        var totalItems = hasMorePages ? knownItemCount + 1 : knownItemCount;
-        var totalPages = hasMorePages ? normalizedPage + 1 : normalizedPage;
+        var totalItems = upstreamTotal ?? (hasMorePages ? knownItemCount + 1 : knownItemCount);
+        var totalPages = upstreamTotal.HasValue
+            ? (totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)normalizedPageSize))
+            : (hasMorePages ? normalizedPage + 1 : normalizedPage);
 
         return new PaginatedEnvelope
         {
@@ -110,5 +113,20 @@ public static class TceCePagination
             CachedAtUtc = cachedAtUtc,
             ExpiresAtUtc = cachedAtUtc.AddSeconds(cacheSeconds)
         };
+    }
+
+    private static int? TryReadKnownTotal(JsonObject metadata)
+    {
+        if (metadata["total"] is JsonValue totalValue && totalValue.TryGetValue<int>(out var total))
+        {
+            return total;
+        }
+
+        if (metadata["count"] is JsonValue countValue && countValue.TryGetValue<int>(out var count))
+        {
+            return count;
+        }
+
+        return null;
     }
 }

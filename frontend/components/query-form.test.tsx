@@ -113,4 +113,28 @@ describe("QueryForm", () => {
       );
     });
   });
+
+  it("highlights required fields in red when submitting with missing values", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <QueryForm
+        initialFilters={[]}
+        municipalities={municipalities}
+        page={1}
+        pageSize={25}
+        resources={resources}
+        selectedMunicipalityCode="013"
+        selectedResource="contrato"
+      />
+    );
+
+    expect(screen.getByText("Campos obrigatorios (4)").closest("fieldset")).not.toHaveClass("border-destructive");
+
+    await user.click(screen.getByRole("button", { name: "Consultar" }));
+
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(screen.getByText("Preencha este campo obrigatorio para consultar.")).toBeInTheDocument();
+    expect(screen.getByText("Campos obrigatorios (4)").closest("fieldset")).toHaveClass("border-destructive");
+  });
 });

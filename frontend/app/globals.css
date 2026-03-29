@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 200 25% 15%;
+    --background: 200 44% 96.5%;
+    --foreground: 206 30% 15%;
     
-    --card: 0 0% 100%;
-    --card-foreground: 200 25% 15%;
+    --card: 199 32% 98.3%;
+    --card-foreground: 206 30% 15%;
     
-    --popover: 0 0% 100%;
-    --popover-foreground: 200 25% 15%;
+    --popover: 199 32% 98.3%;
+    --popover-foreground: 206 30% 15%;
     
-    --primary: 175 65% 30%;
+    --primary: 176 68% 31%;
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 175 30% 95%;
-    --secondary-foreground: 175 65% 25%;
+    --secondary: 201 36% 92.5%;
+    --secondary-foreground: 202 52% 24%;
     
-    --muted: 180 15% 95%;
-    --muted-foreground: 200 15% 45%;
+    --muted: 201 24% 92%;
+    --muted-foreground: 206 18% 39%;
     
-    --accent: 175 65% 30%;
+    --accent: 176 68% 31%;
     --accent-foreground: 0 0% 100%;
     
     --destructive: 0 65% 50%;
@@ -32,11 +32,11 @@
     --success-foreground: 0 0% 100%;
     
     --warning: 35 90% 50%;
-    --warning-foreground: 200 25% 15%;
+    --warning-foreground: 206 30% 15%;
     
-    --border: 180 20% 88%;
-    --input: 180 20% 88%;
-    --ring: 175 65% 30%;
+    --border: 201 24% 82.5%;
+    --input: 201 24% 82.5%;
+    --ring: 176 68% 31%;
     
     --radius: 0.5rem;
   }
@@ -86,6 +86,12 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background-image:
+      radial-gradient(circle at top left, hsl(204 78% 56% / 0.11), transparent 24%),
+      radial-gradient(circle at top right, hsl(var(--warning) / 0.08), transparent 14%),
+      radial-gradient(circle at 50% 0%, hsl(203 78% 99% / 0.95), transparent 38%),
+      linear-gradient(180deg, hsl(203 58% 97.8%), hsl(var(--background)) 24%, hsl(198 26% 95.4%) 100%);
+    background-attachment: fixed;
   }
 
   input,
@@ -109,6 +115,59 @@
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .surface-panel {
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.92), hsl(var(--card) / 0.98)),
+      linear-gradient(135deg, hsl(204 72% 50% / 0.04), transparent 44%);
+    border: 1px solid hsl(var(--border));
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / 0.88) inset,
+      0 16px 34px hsl(205 24% 34% / 0.06),
+      0 30px 84px hsl(205 22% 30% / 0.065);
+    backdrop-filter: blur(14px);
+  }
+
+  .subtle-location-pulse {
+    animation: subtle-location-pulse 2.4s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .soft-reveal {
+    animation: soft-reveal 420ms ease-out both;
+  }
+}
+
+.dark .surface-panel {
+  background:
+    linear-gradient(180deg, hsl(var(--card) / 0.94), hsl(var(--card) / 0.98));
+  box-shadow:
+    0 1px 0 hsl(var(--foreground) / 0.04) inset,
+    0 24px 70px hsl(200 40% 2% / 0.35);
+}
+
+@keyframes subtle-location-pulse {
+  0%, 100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes soft-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

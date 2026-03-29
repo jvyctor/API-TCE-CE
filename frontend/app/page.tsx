@@ -282,6 +282,17 @@ export default async function Home({
       />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section className="soft-reveal mb-8 overflow-hidden rounded-[28px] border border-border/70 bg-card/70 px-6 py-6 shadow-[0_24px_80px_hsl(200_30%_10%_/_0.08)] backdrop-blur-xl">
+          <div className="max-w-2xl">
+            <div className="mb-3 inline-flex rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">
+              Dados Abertos do TCE-CE
+            </div>
+            <h2 className="text-2xl font-extrabold tracking-[-0.04em] text-foreground sm:text-3xl">
+              Consulta Técnica no Tribunal de Contas do Estado do Ceará
+            </h2>
+          </div>
+        </section>
+
         <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
           {/* Main Content */}
           <div className="space-y-8">
@@ -290,17 +301,17 @@ export default async function Home({
               <div className="mb-6">
                 <h2
                   id="query-heading"
-                  className="text-lg font-semibold text-foreground"
+                  className="text-xl font-bold tracking-[-0.02em] text-foreground"
                 >
                   Consulta
                 </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">
                   Selecione um endpoint e preencha os filtros para consultar os
                   dados.
                 </p>
               </div>
 
-              <div className="rounded-xl border bg-card p-6">
+              <div className="surface-panel soft-reveal rounded-[26px] p-6">
                 <QueryForm
                   key={selectedResourceKey || "default-resource"}
                   initialFilters={dynamicFilters}
@@ -321,16 +332,6 @@ export default async function Home({
                 detail={error.detail}
                 status={error.status}
               />
-            )}
-
-            {selectedResource && missingRequiredParameters.length > 0 && (
-              <div className="rounded-lg border border-warning/40 bg-warning/5 p-4 text-sm text-foreground">
-                Preencha os campos obrigatorios para consultar este endpoint:
-                {" "}
-                <span className="font-medium">
-                  {missingRequiredParameters.join(", ")}
-                </span>
-              </div>
             )}
 
             {/* Results Section */}
@@ -354,17 +355,17 @@ export default async function Home({
             />
 
             {/* Quick Help */}
-            <div className="rounded-lg border bg-card p-4">
-              <h3 className="text-sm font-medium text-foreground">
+            <div className="surface-panel soft-reveal rounded-2xl p-5">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Ajuda rapida
               </h3>
-              <ul className="mt-3 space-y-2 text-xs text-muted-foreground">
+              <ul className="mt-4 space-y-3 text-xs leading-6 text-muted-foreground">
                 <li className="flex items-start gap-2">
-                  <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-primary" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                   Selecione um endpoint para ver os campos disponiveis
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-primary" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                   Campos obrigatorios sao destacados em amarelo
                 </li>
               </ul>
@@ -374,7 +375,7 @@ export default async function Home({
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card">
+      <footer className="mt-10 border-t border-border/80 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <p className="text-center text-xs text-muted-foreground">
             Dados fornecidos pela API de Dados Abertos do TCE-CE. Esta interface

@@ -53,6 +53,36 @@ public sealed class TceCePaginationTests
     }
 
     [Fact]
+    public void CreateEnvelope_UsesUpstreamTotal_WhenSourcePaginationReturnsKnownTotal()
+    {
+        var definition = CreateDefinition("codigo_municipio", "quantidade", "deslocamento");
+        var items = new[]
+        {
+            new JsonObject { ["id"] = 1 },
+            new JsonObject { ["id"] = 2 }
+        };
+        var metadata = new JsonObject
+        {
+            ["total"] = 8,
+            ["length"] = 2
+        };
+
+        var envelope = TceCePagination.CreateEnvelope(
+            "agentes_publicos",
+            "https://example.test/agentes_publicos?quantidade=2&deslocamento=0",
+            new PaginationQuery { Page = 1, PageSize = 2 },
+            definition,
+            items,
+            metadata,
+            DateTimeOffset.Parse("2026-03-28T00:00:00Z"),
+            300);
+
+        Assert.Equal(8, envelope.TotalItems);
+        Assert.Equal(4, envelope.TotalPages);
+        Assert.True(envelope.Metadata["totalItemsExact"]?.GetValue<bool>());
+    }
+
+    [Fact]
     public void CreateEnvelope_PaginatesLocally_WhenResourceDoesNotUseSourcePagination()
     {
         var definition = CreateDefinition("codigo_municipio", "data_contrato");

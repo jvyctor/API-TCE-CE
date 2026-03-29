@@ -15,11 +15,11 @@ export function Header({ resourceCount, municipalityCount }: HeaderProps) {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
             <img
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-fEec74DCqI36CQSIHnEzdbBV5yHnJw.png"
-              alt="Logo Grupo S&S"
-              width={48}
-              height={48}
-              className="h-11 w-auto rounded-md border border-border/60 bg-card/70 p-1.5 shadow-[0_8px_22px_hsl(190_24%_32%_/_0.07)]"
+              src="/Grupo-SS.png"
+              alt="Grupo S&S"
+              width={377}
+              height={98}
+              className="h-10 w-auto shrink-0 object-contain sm:h-12"
             />
             <div className="space-y-1.5">
               <h1 className="text-[1.6rem] font-extrabold tracking-[-0.04em] text-foreground">

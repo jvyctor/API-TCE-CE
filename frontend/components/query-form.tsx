@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Search, RotateCcw, ChevronDown, Info, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -300,7 +300,9 @@ export function QueryForm({
     setLocalPageSize(25);
     setQuantity("25");
     setOffset("0");
-    window.location.href = "/";
+    startTransition(() => {
+      router.replace(pathname);
+    });
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -807,7 +809,7 @@ export function QueryForm({
           {showOptional && (
             <div className="border-t border-border/70 bg-background/60 p-5">
               <div className="grid gap-4 sm:grid-cols-2">
-                {optionalParameters.slice(0, 6).map((p) => (
+                {optionalParameters.map((p) => (
                   <div key={p.name}>{renderInput(p, true)}</div>
                 ))}
               </div>

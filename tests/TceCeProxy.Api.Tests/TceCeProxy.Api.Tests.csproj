@@ -20,8 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="TceCeProxy.Api">
-      <HintPath>..\..\.artifacts\api-build\TceCeProxy.Api.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\..\src\TceCeProxy.Api\TceCeProxy.Api.csproj" />
   </ItemGroup>
 </Project>

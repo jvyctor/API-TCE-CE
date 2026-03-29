@@ -29,6 +29,7 @@ public sealed class TceCeClient(
         }
 
         var effectiveQueryParameters = TceCePagination.ApplySourcePagination(definition, pagination, queryParameters);
+        ValidateRequiredQueryParameters(resource, definition, effectiveQueryParameters);
         var sourceUri = BuildSourceUri(definition.Path, effectiveQueryParameters);
         var cacheKey = $"tcece::{resource}::{sourceUri}";
         var requestStopwatch = Stopwatch.StartNew();
@@ -187,6 +188,26 @@ public sealed class TceCeClient(
 
         uriBuilder.Query = query.ToString() ?? string.Empty;
         return uriBuilder.Uri.ToString();
+    }
+
+    private static void ValidateRequiredQueryParameters(
+        string resource,
+        TceCeResourceDefinition definition,
+        IReadOnlyDictionary<string, string> queryParameters)
+    {
+        var missingParameters = definition.QueryParameters
+            .Where(parameter => parameter.Required)
+            .Select(parameter => parameter.Name)
+            .Where(parameterName =>
+                !queryParameters.TryGetValue(parameterName, out var value) ||
+                string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (missingParameters.Length > 0)
+        {
+            throw new MissingRequiredQueryParametersException(resource, missingParameters);
+        }
     }
 
     private sealed record CachedPayload(

@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using TceCeProxy.Api.Models;
 using TceCeProxy.Api.Options;
 using TceCeProxy.Api.Services;
@@ -36,6 +36,7 @@ app.UseExceptionHandler(exceptionApp =>
         var (statusCode, title) = exception switch
         {
             ResourceNotConfiguredException => (StatusCodes.Status404NotFound, "Recurso não configurado"),
+            MissingRequiredQueryParametersException => (StatusCodes.Status400BadRequest, "Parâmetros obrigatórios ausentes"),
             UpstreamResourceNotFoundException => (StatusCodes.Status404NotFound, "Recurso remoto não encontrado"),
             UpstreamRequestException upstream when upstream.StatusCode == System.Net.HttpStatusCode.BadRequest
                 => (StatusCodes.Status400BadRequest, "Parâmetros inválidos para o endpoint do TCE-CE"),

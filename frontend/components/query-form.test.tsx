@@ -80,7 +80,7 @@ describe("QueryForm", () => {
 
     expect(screen.getByText("Campos obrigatorios (4)")).toBeInTheDocument();
     expect(screen.getByText("data_contrato")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("013")).toBeInTheDocument();
+    expect(screen.getByLabelText("Municipio")).toHaveValue("013");
     expect(screen.getAllByRole("button", { name: "25" })).not.toHaveLength(0);
     expect(screen.getByLabelText(/deslocamento/i)).toHaveValue(0);
   });

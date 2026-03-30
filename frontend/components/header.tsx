@@ -21,13 +21,10 @@ export function Header({ resourceCount, municipalityCount }: HeaderProps) {
               height={98}
               className="h-10 w-auto shrink-0 object-contain sm:h-12"
             />
-            <div className="space-y-1.5">
+            <div>
               <h1 className="text-[1.6rem] font-extrabold tracking-[-0.04em] text-foreground">
                 API TCE-CE
               </h1>
-              <p className="text-sm leading-6 text-muted-foreground/90">
-                Consulta tecnica com leitura clara de endpoints, municipios e registros.
-              </p>
             </div>
           </div>
 

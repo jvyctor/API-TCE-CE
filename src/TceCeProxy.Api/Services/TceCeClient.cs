@@ -69,6 +69,23 @@ public sealed class TceCeClient(
 
                 if (response.StatusCode == HttpStatusCode.NotFound)
                 {
+                    if (ShouldTreatNotFoundAsEmptyPage(definition, pagination))
+                    {
+                        upstreamStopwatch.Stop();
+
+                        logger.LogInformation(
+                            "TCE-CE returned 404 for a paged source request beyond the available range. Resource: {Resource}. Url: {Url}. Returning an empty page.",
+                            resource,
+                            sourceUri);
+
+                        return new CachedPayload(
+                            DateTimeOffset.UtcNow,
+                            [],
+                            new JsonObject(),
+                            sourceUri,
+                            upstreamStopwatch.ElapsedMilliseconds);
+                    }
+
                     throw new UpstreamResourceNotFoundException(resource, sourceUri);
                 }
 
@@ -208,6 +225,13 @@ public sealed class TceCeClient(
         {
             throw new MissingRequiredQueryParametersException(resource, missingParameters);
         }
+    }
+
+    private static bool ShouldTreatNotFoundAsEmptyPage(
+        TceCeResourceDefinition definition,
+        PaginationQuery pagination)
+    {
+        return TceCePagination.UsesSourcePagination(definition) && pagination.NormalizedPage > 1;
     }
 
     private sealed record CachedPayload(

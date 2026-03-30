@@ -2,7 +2,6 @@ import { Header } from "@/components/header";
 import { QueryForm } from "@/components/query-form";
 import { ResultsPanel } from "@/components/results-panel";
 import { ErrorCard } from "@/components/error-card";
-import { EndpointInfo } from "@/components/endpoint-info";
 import { Toast } from "@/components/toast";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -63,6 +62,8 @@ const defaultCatalog: ResourceCatalog = {
   baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080",
   resources: [],
 };
+const fullFetchBatchSize = 250;
+const sourceFetchBatchSize = 100;
 
 const reservedParams = new Set([
   "resource",
@@ -105,7 +106,7 @@ async function getMunicipalities(): Promise<MunicipalityRecord[]> {
   }
 }
 
-async function getResourcePage(
+async function fetchResourceEnvelope(
   resource: string,
   page: number,
   pageSize: number,
@@ -160,6 +161,30 @@ async function getResourcePage(
   }
 }
 
+function usesSourcePagination(resource: ResourceDescriptor | null | undefined) {
+  return Boolean(
+    resource?.queryParameters.some(
+      (parameter) =>
+        parameter.name === "quantidade" || parameter.name === "deslocamento"
+    )
+  );
+}
+
+function getFetchBatchSize(resource: ResourceDescriptor | null | undefined) {
+  return usesSourcePagination(resource)
+    ? sourceFetchBatchSize
+    : fullFetchBatchSize;
+}
+
+async function getResourcePage(
+  resource: string,
+  filters: Array<{ key: string; value: string }>,
+  pageSize: number
+): Promise<ResourcePageResult> {
+  if (!resource) return { payload: null, error: null };
+  return fetchResourceEnvelope(resource, 1, pageSize, filters);
+}
+
 function normalizeParam(
   value: string | string[] | undefined,
   fallback: string
@@ -205,6 +230,10 @@ function getMissingRequiredParameters(
   );
 
   return resource.requiredQueryParameters.filter((parameterName) => {
+    if (parameterName === "quantidade" || parameterName === "deslocamento") {
+      return false;
+    }
+
     if (parameterName === "codigo_municipio") {
       return municipalityCode.trim() === "";
     }
@@ -233,15 +262,12 @@ export default async function Home({
     resolvedSearchParams.codigo_municipio,
     ""
   );
-  const page =
-    Number.parseInt(normalizeParam(resolvedSearchParams.page, "1"), 10) || 1;
-  const pageSize =
-    Number.parseInt(normalizeParam(resolvedSearchParams.pageSize, "25"), 10) ||
-    25;
   const requestFilters = extractDynamicFilters(resolvedSearchParams);
 
   const selectedResource =
     catalog.resources.find((r) => r.key === selectedResourceKey) ?? null;
+  const page = 1;
+  const pageSize = getFetchBatchSize(selectedResource);
   const dynamicFilters = filterResourceFilters(requestFilters, selectedResource);
   const missingRequiredParameters = getMissingRequiredParameters(
     selectedResource,
@@ -255,12 +281,12 @@ export default async function Home({
 
   const { payload, error } =
     missingRequiredParameters.length === 0
-      ? await getResourcePage(selectedResourceKey, page, pageSize, [
+      ? await getResourcePage(selectedResourceKey, [
           ...dynamicFilters,
           ...(selectedMunicipalityCode
             ? [{ key: "codigo_municipio", value: selectedMunicipalityCode }]
             : []),
-        ])
+        ], pageSize)
       : { payload: null, error: null };
 
   const hasDataAlert = Boolean(
@@ -283,95 +309,55 @@ export default async function Home({
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <section className="soft-reveal mb-8 overflow-hidden rounded-[28px] border border-border/70 bg-card/70 px-6 py-6 shadow-[0_24px_80px_hsl(200_30%_10%_/_0.08)] backdrop-blur-xl">
-          <div className="max-w-2xl">
+          <div className="max-w-5xl">
             <div className="mb-3 inline-flex rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">
               Dados Abertos do TCE-CE
             </div>
-            <h2 className="text-2xl font-extrabold tracking-[-0.04em] text-foreground sm:text-3xl">
+            <h2 className="max-w-none text-2xl font-extrabold tracking-[-0.04em] text-foreground sm:text-3xl lg:text-[2.1rem] lg:leading-[1.1]">
               Consulta Técnica no Tribunal de Contas do Estado do Ceará
             </h2>
           </div>
         </section>
 
-        <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
-          {/* Main Content */}
-          <div className="space-y-8">
-            {/* Query Section */}
-            <section aria-labelledby="query-heading">
-              <div className="mb-6">
-                <h2
-                  id="query-heading"
-                  className="text-xl font-bold tracking-[-0.02em] text-foreground"
-                >
-                  Consulta
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">
-                  Selecione um endpoint e preencha os filtros para consultar os
-                  dados.
-                </p>
-              </div>
-
-              <div className="surface-panel soft-reveal rounded-[26px] p-6">
-                <QueryForm
-                  key={selectedResourceKey || "default-resource"}
-                  initialFilters={dynamicFilters}
-                  municipalities={municipalities}
-                  page={page}
-                  pageSize={pageSize}
-                  resources={catalog.resources}
-                  selectedMunicipalityCode={selectedMunicipalityCode}
-                  selectedResource={selectedResourceKey}
-                />
-              </div>
-            </section>
-
-            {/* Error Display */}
-            {error && (
-              <ErrorCard
-                title={error.title}
-                detail={error.detail}
-                status={error.status}
-              />
-            )}
-
-            {/* Results Section */}
-            {payload && (
-              <ResultsPanel
-                payload={payload}
-                filters={dynamicFilters}
-                selectedResource={selectedResourceKey}
-                selectedMunicipalityCode={selectedMunicipalityCode}
+        <section className="min-w-0">
+          <section aria-label="Formulario de consulta">
+            <div className="surface-panel soft-reveal overflow-hidden rounded-[26px] p-6">
+              <QueryForm
+                key={selectedResourceKey || "default-resource"}
+                initialFilters={dynamicFilters}
+                municipalities={municipalities}
                 page={page}
                 pageSize={pageSize}
+                resources={catalog.resources}
+                selectedMunicipalityCode={selectedMunicipalityCode}
+                selectedResource={selectedResourceKey}
               />
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <aside className="space-y-6 lg:sticky lg:top-8 lg:self-start">
-            <EndpointInfo
-              resource={selectedResource}
-              municipality={selectedMunicipality}
-            />
-
-            {/* Quick Help */}
-            <div className="surface-panel soft-reveal rounded-2xl p-5">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Ajuda rapida
-              </h3>
-              <ul className="mt-4 space-y-3 text-xs leading-6 text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                  Selecione um endpoint para ver os campos disponiveis
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                  Campos obrigatorios sao destacados em amarelo
-                </li>
-              </ul>
             </div>
-          </aside>
-        </div>
+          </section>
+        </section>
+
+        <section className="mt-8 min-w-0 space-y-8">
+          {error && (
+            <ErrorCard
+              title={error.title}
+              detail={error.detail}
+              status={error.status}
+            />
+          )}
+
+          {payload && (
+            <ResultsPanel
+              payload={payload}
+              filters={dynamicFilters}
+              selectedResource={selectedResourceKey}
+              resourceCategory={selectedResource?.category ?? null}
+              municipality={selectedMunicipality}
+              apiBaseUrl={catalog.baseUrl}
+              selectedMunicipalityCode={selectedMunicipalityCode}
+              requestPageSize={pageSize}
+            />
+          )}
+        </section>
       </main>
 
       {/* Footer */}

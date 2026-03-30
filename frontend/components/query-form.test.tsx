@@ -60,7 +60,7 @@ describe("QueryForm", () => {
 
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith(
-        "/?resource=contrato&page=1&pageSize=25&codigo_municipio=013&quantidade=25&deslocamento=0"
+        "/?resource=contrato&page=1&pageSize=100&codigo_municipio=013"
       );
     });
   });
@@ -79,13 +79,13 @@ describe("QueryForm", () => {
     );
 
     expect(screen.getByText("Campos obrigatorios (4)")).toBeInTheDocument();
-    expect(screen.getByText("data_contrato")).toBeInTheDocument();
+    expect(screen.getByText("Data do contrato")).toBeInTheDocument();
     expect(screen.getByLabelText("Municipio")).toHaveValue("013");
-    expect(screen.getAllByRole("button", { name: "25" })).not.toHaveLength(0);
-    expect(screen.getByLabelText(/deslocamento/i)).toHaveValue(0);
+    expect(screen.queryByText("quantidade")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/deslocamento/i)).not.toBeInTheDocument();
   });
 
-  it("uses quantidade as the effective page size when submitting", async () => {
+  it("submits full fetch params without exposing quantidade", async () => {
     const user = userEvent.setup();
 
     render(
@@ -104,12 +104,11 @@ describe("QueryForm", () => {
       />
     );
 
-    await user.click(screen.getAllByRole("button", { name: "100" })[0]);
     await user.click(screen.getByRole("button", { name: "Consultar" }));
 
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith(
-        "/?resource=contrato&page=1&pageSize=100&codigo_municipio=013&data_contrato=2025-01-01_2025-12-31&quantidade=100&deslocamento=0"
+        "/?resource=contrato&page=1&pageSize=100&codigo_municipio=013&data_contrato=2025-01-01_2025-12-31"
       );
     });
   });

@@ -126,6 +126,55 @@ public sealed class TceCeClientIntegrationTests
         Assert.True(page.Metadata["totalItemsExact"]?.GetValue<bool>());
     }
 
+    [Fact]
+    public async Task GetResourcePageAsync_ReturnsEmptyPage_WhenSourcePaginationExceedsAvailableItemsAndUpstreamReturnsNotFound()
+    {
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+
+        using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(
+            httpClient,
+            memoryCache,
+            new Dictionary<string, TceCeResourceDefinition>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["agentes_publicos"] = new()
+                {
+                    Path = "agentes_publicos",
+                    PaginationMode = TceCePaginationMode.Source,
+                    QueryParameters =
+                    [
+                        new() { Name = "codigo_municipio", Required = true },
+                        new() { Name = "exercicio_orcamento", Required = true },
+                        new() { Name = "quantidade", Required = true },
+                        new() { Name = "deslocamento", Required = true }
+                    ]
+                }
+            });
+
+        var page = await client.GetResourcePageAsync(
+            "agentes_publicos",
+            new PaginationQuery { Page = 2, PageSize = 250 },
+            new Dictionary<string, string>
+            {
+                ["codigo_municipio"] = "016",
+                ["exercicio_orcamento"] = "202500"
+            },
+            CancellationToken.None);
+
+        Assert.Equal(1, handler.CallCount);
+        Assert.Contains("quantidade=250", handler.RequestUris[0]);
+        Assert.Contains("deslocamento=250", handler.RequestUris[0]);
+        Assert.Empty(page.Items);
+        Assert.Equal(2, page.Page);
+        Assert.Equal(250, page.PageSize);
+        Assert.Equal(250, page.TotalItems);
+        Assert.Equal(2, page.TotalPages);
+        Assert.True(page.Metadata["sourcePagination"]?.GetValue<bool>());
+        Assert.False(page.Metadata["hasMorePages"]?.GetValue<bool>());
+        Assert.True(page.Metadata["totalItemsExact"]?.GetValue<bool>());
+    }
+
     private static TceCeClient CreateClient(
         HttpClient httpClient,
         IMemoryCache memoryCache,

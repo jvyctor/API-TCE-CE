@@ -5,6 +5,8 @@ import { ErrorCard } from "@/components/error-card";
 import { Toast } from "@/components/toast";
 import { getPublicApiBaseUrl, getServerApiBaseUrl } from "@/lib/api-base-url";
 
+export const dynamic = "force-dynamic";
+
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 type QueryParameterDescriptor = {

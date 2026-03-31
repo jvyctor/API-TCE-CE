@@ -1,7 +1,11 @@
 import { getServerApiBaseUrl } from "./api-base-url";
 import catalogSnapshot from "./tcece-catalog.json";
 
-const officialApiBaseUrl = "https://api-dados-abertos.tce.ce.gov.br";
+const officialApiBaseUrls = [
+  "https://api-dados-abertos.tce.ce.gov.br",
+  "https://api.tcm.ce.gov.br",
+] as const;
+const officialApiBaseUrl = officialApiBaseUrls[0];
 const defaultCacheSeconds = 300;
 
 type QueryParameterDescriptor = {
@@ -405,20 +409,7 @@ export async function getResourceResponse(
     };
   }
 
-  const sourceUrl = new URL(`${officialApiBaseUrl}/${resource.path.replace(/^\/+/, "")}`);
   const sourcePagination = usesSourcePagination(resource);
-
-  for (const [key, value] of queryParameters.entries()) {
-    if (!value.trim() || key === "page" || key === "pageSize") {
-      continue;
-    }
-
-    if (sourcePagination && (key === "quantidade" || key === "deslocamento")) {
-      continue;
-    }
-
-    sourceUrl.searchParams.set(key, value);
-  }
 
   const normalizedPage = Math.max(1, page);
   const normalizedPageSize = Math.min(250, Math.max(1, pageSize));
@@ -460,58 +451,72 @@ export async function getResourceResponse(
     }
   }
 
-  if (sourcePagination) {
-    sourceUrl.searchParams.set("quantidade", String(normalizedPageSize));
-    sourceUrl.searchParams.set(
-      "deslocamento",
-      String((normalizedPage - 1) * normalizedPageSize)
-    );
-  }
+  let lastFailureStatus = 502;
 
-  try {
-    const response = await fetch(sourceUrl.toString(), {
-      cache: "no-store",
-      signal: getTimeoutSignal(45000),
-      headers: {
-        accept: "application/json",
-        "user-agent": "Mozilla/5.0 API-TCE-CE/1.0",
-      },
-    });
+  for (const baseUrl of officialApiBaseUrls) {
+    const sourceUrl = new URL(`${baseUrl}/${resource.path.replace(/^\/+/, "")}`);
 
-    if (!response.ok) {
-      return {
-        status: response.status,
-        body: {
-          title: "Falha na consulta",
-          status: response.status,
-          detail: "Nao foi possivel consultar o recurso selecionado.",
-        },
-      };
+    for (const [key, value] of queryParameters.entries()) {
+      if (!value.trim() || key === "page" || key === "pageSize") {
+        continue;
+      }
+
+      if (sourcePagination && (key === "quantidade" || key === "deslocamento")) {
+        continue;
+      }
+
+      sourceUrl.searchParams.set(key, value);
     }
 
-    const root = (await response.json()) as unknown;
-    const normalized = normalizePayload(root);
+    if (sourcePagination) {
+      sourceUrl.searchParams.set("quantidade", String(normalizedPageSize));
+      sourceUrl.searchParams.set(
+        "deslocamento",
+        String((normalizedPage - 1) * normalizedPageSize)
+      );
+    }
 
-    return {
-      status: 200,
-      body: buildEnvelope(
-        resourceKey,
-        sourceUrl.toString(),
-        normalizedPage,
-        normalizedPageSize,
-        resource,
-        normalized.items,
-        normalized.metadata
-      ),
-    };
-  } catch {
-    return {
-      status: 502,
-      body: {
-        title: "Falha de conectividade com o TCE-CE",
-        status: 502,
-        detail: "Nao foi possivel concluir a comunicacao com o servico remoto.",
-      },
-    };
+    try {
+      const response = await fetch(sourceUrl.toString(), {
+        cache: "no-store",
+        signal: getTimeoutSignal(45000),
+        headers: {
+          accept: "application/json",
+          "user-agent": "Mozilla/5.0 API-TCE-CE/1.0",
+        },
+      });
+
+      if (!response.ok) {
+        lastFailureStatus = response.status;
+        continue;
+      }
+
+      const root = (await response.json()) as unknown;
+      const normalized = normalizePayload(root);
+
+      return {
+        status: 200,
+        body: buildEnvelope(
+          resourceKey,
+          sourceUrl.toString(),
+          normalizedPage,
+          normalizedPageSize,
+          resource,
+          normalized.items,
+          normalized.metadata
+        ),
+      };
+    } catch {
+      continue;
+    }
   }
+
+  return {
+    status: lastFailureStatus,
+    body: {
+      title: "Falha de conectividade com o TCE-CE",
+      status: lastFailureStatus,
+      detail: "Nao foi possivel concluir a comunicacao com o servico remoto.",
+    },
+  };
 }

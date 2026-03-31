@@ -1,4 +1,6 @@
+import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
+import { getServerApiBaseUrl } from "./api-base-url";
 import catalogSnapshot from "./tcece-catalog.json";
 
 const officialApiBaseUrl = "https://api-dados-abertos.tce.ce.gov.br";
@@ -48,7 +50,8 @@ async function requestJson(url: URL, timeoutMs: number) {
     status: number;
     json: unknown;
   }>((resolve, reject) => {
-    const request = httpsRequest(
+    const transport = url.protocol === "http:" ? httpRequest : httpsRequest;
+    const request = transport(
       {
         protocol: url.protocol,
         hostname: url.hostname,
@@ -436,81 +439,48 @@ export async function getResourceResponse(
   pageSize: number,
   queryParameters: URLSearchParams
 ) {
-  const resources = await getCatalog();
-  const resource = resources.find((entry) => entry.key === resourceKey);
-
-  if (!resource) {
-    return {
-      status: 404,
-      body: {
-        title: "Recurso nao encontrado",
-        status: 404,
-        detail: `O recurso '${resourceKey}' nao esta configurado no catalogo.`,
-      },
-    };
-  }
-
-  const sourcePagination = usesSourcePagination(resource);
-
-  const normalizedPage = Math.max(1, page);
-  const normalizedPageSize = Math.min(250, Math.max(1, pageSize));
-  const sourceUrl = new URL(`${officialApiBaseUrl}/${resource.path.replace(/^\/+/, "")}`);
+  const backendUrl = new URL(
+    `${getServerApiBaseUrl()}/api/resources/${resourceKey}`
+  );
+  backendUrl.searchParams.set("page", String(Math.max(1, page)));
+  backendUrl.searchParams.set("pageSize", String(Math.min(250, Math.max(1, pageSize))));
 
   for (const [key, value] of queryParameters.entries()) {
     if (!value.trim() || key === "page" || key === "pageSize") {
       continue;
     }
 
-    if (sourcePagination && (key === "quantidade" || key === "deslocamento")) {
-      continue;
-    }
-
-    sourceUrl.searchParams.set(key, value);
-  }
-
-  if (sourcePagination) {
-    sourceUrl.searchParams.set("quantidade", String(normalizedPageSize));
-    sourceUrl.searchParams.set(
-      "deslocamento",
-      String((normalizedPage - 1) * normalizedPageSize)
-    );
+    backendUrl.searchParams.set(key, value);
   }
 
   try {
-    const response = await requestJson(sourceUrl, 30000);
+    const response = await requestJson(backendUrl, 45000);
 
     if (!response.ok) {
+      const problem =
+        response.json && typeof response.json === "object"
+          ? (response.json as { title?: string; detail?: string })
+          : null;
+
       return {
         status: response.status,
         body: {
-          title: "Falha na consulta",
+          title: problem?.title ?? "Falha na consulta",
           status: response.status,
-          detail: "Nao foi possivel consultar o recurso selecionado.",
+          detail:
+            problem?.detail ?? "Nao foi possivel consultar o recurso selecionado.",
         },
       };
     }
 
-    const normalized = normalizePayload(response.json);
-
-    return {
-      status: 200,
-      body: buildEnvelope(
-        resourceKey,
-        sourceUrl.toString(),
-        normalizedPage,
-        normalizedPageSize,
-        resource,
-        normalized.items,
-        normalized.metadata
-      ),
-    };
+    return { status: 200, body: response.json };
   } catch {
     return {
       status: 502,
       body: {
-        title: "Falha de conectividade com o TCE-CE",
+        title: "Falha de conectividade com o backend",
         status: 502,
-        detail: "Nao foi possivel concluir a comunicacao com o servico remoto.",
+        detail: `Nao foi possivel concluir a comunicacao com ${getServerApiBaseUrl()}.`,
       },
     };
   }

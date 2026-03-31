@@ -168,51 +168,68 @@ async function fetchResourceEnvelope(
 ): Promise<ResourcePageResult> {
   if (!resource) return { payload: null, error: null };
 
-  const url = new URL(`${getServerApiBaseUrl()}/api/resources/${resource}`);
-  url.searchParams.set("page", String(page));
-  url.searchParams.set("pageSize", String(pageSize));
-  filters.forEach((f) => {
-    if (f.key.trim() !== "") url.searchParams.set(f.key, f.value);
-  });
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
 
-  try {
-    const response = await fetch(url.toString(), { cache: "no-store" });
+  const buildUrl = (baseUrl: string) => {
+    const url = new URL(`${baseUrl}/api/resources/${resource}`);
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("pageSize", String(pageSize));
+    filters.forEach((f) => {
+      if (f.key.trim() !== "") url.searchParams.set(f.key, f.value);
+    });
+    return url;
+  };
 
-    if (!response.ok) {
-      let title = "Falha na consulta";
-      let detail = "Nao foi possivel consultar o recurso selecionado.";
+  const candidateUrls = [];
+  if (host) {
+    candidateUrls.push(buildUrl(`${protocol}://${host}`));
+  }
+  candidateUrls.push(buildUrl(getServerApiBaseUrl()));
 
-      try {
-        const problem = (await response.json()) as {
-          title?: string;
-          detail?: string;
+  for (const url of candidateUrls) {
+    try {
+      const response = await fetch(url.toString(), { cache: "no-store" });
+
+      if (!response.ok) {
+        let title = "Falha na consulta";
+        let detail = "Nao foi possivel consultar o recurso selecionado.";
+
+        try {
+          const problem = (await response.json()) as {
+            title?: string;
+            detail?: string;
+          };
+          title = problem.title ?? title;
+          detail = problem.detail ?? detail;
+        } catch {
+          detail = await response.text();
+        }
+
+        return {
+          payload: null,
+          error: { status: response.status, title, detail },
         };
-        title = problem.title ?? title;
-        detail = problem.detail ?? detail;
-      } catch {
-        detail = await response.text();
       }
 
       return {
-        payload: null,
-        error: { status: response.status, title, detail },
+        payload: (await response.json()) as PaginatedEnvelope,
+        error: null,
       };
+    } catch {
+      continue;
     }
-
-    return {
-      payload: (await response.json()) as PaginatedEnvelope,
-      error: null,
-    };
-  } catch {
-    return {
-      payload: null,
-      error: {
-        status: 0,
-        title: "Falha de conexao",
-        detail: `Nao foi possivel conectar ao servidor em ${getServerApiBaseUrl()}.`,
-      },
-    };
   }
+
+  return {
+    payload: null,
+    error: {
+      status: 0,
+      title: "Falha de conexao",
+      detail: `Nao foi possivel conectar ao servidor em ${getServerApiBaseUrl()}.`,
+    },
+  };
 }
 
 function usesSourcePagination(resource: ResourceDescriptor | null | undefined) {

@@ -23,41 +23,51 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITceCeResourceCatalog, TceCeSwaggerResourceCatalog>();
         services.AddHttpClient<ITceCeClient, TceCeClient>(client =>
             {
-                client.Timeout = TimeSpan.FromSeconds(45);
+                client.Timeout = TimeSpan.FromSeconds(120);
                 client.DefaultRequestVersion = HttpVersion.Version11;
                 client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
             })
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
-                ConnectTimeout = TimeSpan.FromSeconds(15),
+                ConnectTimeout = TimeSpan.FromSeconds(30),
                 PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
                 EnableMultipleHttp2Connections = false,
                 ConnectCallback = async (context, cancellationToken) =>
                 {
                     var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken);
-                    var ipv4Address = addresses.FirstOrDefault(address => address.AddressFamily == AddressFamily.InterNetwork);
+                    var ipv4Addresses = addresses
+                        .Where(address => address.AddressFamily == AddressFamily.InterNetwork)
+                        .ToArray();
 
-                    if (ipv4Address is null)
+                    if (ipv4Addresses.Length == 0)
                     {
                         throw new SocketException((int)SocketError.HostNotFound);
                     }
 
-                    var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    Exception? lastException = null;
 
-                    try
+                    foreach (var ipv4Address in ipv4Addresses)
                     {
-                        await socket.ConnectAsync(
-                            new IPEndPoint(ipv4Address, context.DnsEndPoint.Port),
-                            cancellationToken);
+                        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-                        return new NetworkStream(socket, ownsSocket: true);
+                        try
+                        {
+                            await socket.ConnectAsync(
+                                new IPEndPoint(ipv4Address, context.DnsEndPoint.Port),
+                                cancellationToken);
+
+                            return new NetworkStream(socket, ownsSocket: true);
+                        }
+                        catch (Exception exception)
+                        {
+                            lastException = exception;
+                            socket.Dispose();
+                        }
                     }
-                    catch
-                    {
-                        socket.Dispose();
-                        throw;
-                    }
+
+                    throw lastException ?? new SocketException((int)SocketError.NotConnected);
                 }
             });
         services.AddHealthChecks()

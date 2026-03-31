@@ -81,7 +81,7 @@ const reservedParams = new Set([
 async function getCatalog(): Promise<ResourceCatalog> {
   try {
     const response = await fetch(`${getServerApiBaseUrl()}/api/resources`, {
-      cache: "no-store",
+      next: { revalidate: 3600 },
     });
     if (!response.ok) return defaultCatalog;
     return (await response.json()) as ResourceCatalog;
@@ -94,7 +94,7 @@ async function getMunicipalities(): Promise<MunicipalityRecord[]> {
   try {
     const response = await fetch(
       `${getServerApiBaseUrl()}/api/resources/municipios?page=1&pageSize=250`,
-      { cache: "no-store" }
+      { next: { revalidate: 3600 } }
     );
     if (!response.ok) return [];
     const payload = (await response.json()) as PaginatedEnvelope;

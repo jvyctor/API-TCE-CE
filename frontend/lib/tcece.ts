@@ -1,3 +1,4 @@
+import { getServerApiBaseUrl } from "./api-base-url";
 import catalogSnapshot from "./tcece-catalog.json";
 
 const officialApiBaseUrl = "https://api-dados-abertos.tce.ce.gov.br";
@@ -40,6 +41,15 @@ type CachedCatalog = {
 };
 
 let cachedCatalog: CachedCatalog | null = null;
+
+function getProxyApiBaseUrl() {
+  const baseUrl = getServerApiBaseUrl();
+  if (!baseUrl || baseUrl === officialApiBaseUrl) {
+    return null;
+  }
+
+  return baseUrl;
+}
 
 function getTimeoutSignal(timeoutMs: number) {
   return AbortSignal.timeout(timeoutMs);
@@ -413,6 +423,43 @@ export async function getResourceResponse(
   const normalizedPage = Math.max(1, page);
   const normalizedPageSize = Math.min(250, Math.max(1, pageSize));
 
+  const proxyApiBaseUrl = getProxyApiBaseUrl();
+  if (proxyApiBaseUrl) {
+    const proxyUrl = new URL(
+      `${proxyApiBaseUrl}/api/resources/${resourceKey}`
+    );
+    proxyUrl.searchParams.set("page", String(normalizedPage));
+    proxyUrl.searchParams.set("pageSize", String(normalizedPageSize));
+
+    for (const [key, value] of queryParameters.entries()) {
+      if (!value.trim() || key === "page" || key === "pageSize") {
+        continue;
+      }
+
+      proxyUrl.searchParams.set(key, value);
+    }
+
+    try {
+      const proxyResponse = await fetch(proxyUrl.toString(), {
+        cache: "no-store",
+        signal: getTimeoutSignal(45000),
+        headers: {
+          accept: "application/json",
+          "user-agent": "Mozilla/5.0 API-TCE-CE/1.0",
+        },
+      });
+
+      if (proxyResponse.ok) {
+        return {
+          status: 200,
+          body: (await proxyResponse.json()) as PaginatedEnvelope,
+        };
+      }
+    } catch {
+      // Fall through to the direct upstream request.
+    }
+  }
+
   if (sourcePagination) {
     sourceUrl.searchParams.set("quantidade", String(normalizedPageSize));
     sourceUrl.searchParams.set(
@@ -424,7 +471,7 @@ export async function getResourceResponse(
   try {
     const response = await fetch(sourceUrl.toString(), {
       cache: "no-store",
-      signal: getTimeoutSignal(30000),
+      signal: getTimeoutSignal(45000),
       headers: {
         accept: "application/json",
         "user-agent": "Mozilla/5.0 API-TCE-CE/1.0",

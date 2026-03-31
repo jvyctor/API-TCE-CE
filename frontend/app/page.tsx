@@ -143,6 +143,8 @@ async function fetchResourceEnvelope(
   }
   candidateUrls.push(buildUrl(getServerApiBaseUrl()));
 
+  let lastError: ResourcePageResult["error"] = null;
+
   for (const url of candidateUrls) {
     try {
       const response = await fetch(url.toString(), { cache: "no-store" });
@@ -162,9 +164,16 @@ async function fetchResourceEnvelope(
           detail = await response.text();
         }
 
+        lastError = { status: response.status, title, detail };
+
+        // Se a rota atual falhar com erro de infraestrutura, tenta o proximo backend.
+        if (response.status >= 500) {
+          continue;
+        }
+
         return {
           payload: null,
-          error: { status: response.status, title, detail },
+          error: lastError,
         };
       }
 
@@ -175,6 +184,13 @@ async function fetchResourceEnvelope(
     } catch {
       continue;
     }
+  }
+
+  if (lastError) {
+    return {
+      payload: null,
+      error: lastError,
+    };
   }
 
   return {

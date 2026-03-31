@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerApiBaseUrl } from "@/lib/api-base-url";
 
 type RouteContext = {
   params: Promise<{
@@ -6,18 +7,10 @@ type RouteContext = {
   }>;
 };
 
-function getApiBaseUrl() {
-  return (
-    process.env.API_INTERNAL_URL ??
-    process.env.NEXT_PUBLIC_API_URL ??
-    "http://localhost:8080"
-  ).replace(/\/$/, "");
-}
-
 export async function GET(request: NextRequest, context: RouteContext) {
   const { resource } = await context.params;
   const targetUrl = new URL(
-    `${getApiBaseUrl()}/api/resources/${encodeURIComponent(resource)}`
+    `${getServerApiBaseUrl()}/api/resources/${encodeURIComponent(resource)}`
   );
 
   request.nextUrl.searchParams.forEach((value, key) => {

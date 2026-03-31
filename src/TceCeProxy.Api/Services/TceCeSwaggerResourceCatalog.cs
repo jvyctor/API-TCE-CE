@@ -131,6 +131,19 @@ public sealed class TceCeSwaggerResourceCatalog : ITceCeResourceCatalog
             return configuredPath;
         }
 
+        var currentDirectory = new DirectoryInfo(contentRootPath);
+
+        while (currentDirectory is not null)
+        {
+            var candidatePath = Path.Combine(currentDirectory.FullName, configuredPath);
+            if (File.Exists(candidatePath))
+            {
+                return candidatePath;
+            }
+
+            currentDirectory = currentDirectory.Parent;
+        }
+
         return Path.GetFullPath(Path.Combine(contentRootPath, configuredPath));
     }
 

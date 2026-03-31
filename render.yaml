@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: tcece-proxy-api
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: TceCeApi__BaseUrl
+        value: https://api-dados-abertos.tce.ce.gov.br/
+      - key: TceCeApi__CacheSeconds
+        value: "300"
+      - key: TceCeApi__ApiKey
+        sync: false
+      - key: TceCeApi__ApiKeyHeaderName
+        sync: false
+
+  - type: web
+    name: tcece-proxy-web
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_INTERNAL_URL
+        fromService:
+          type: web
+          name: tcece-proxy-api
+          property: hostport
+      - key: NEXT_PUBLIC_API_URL
+        sync: false

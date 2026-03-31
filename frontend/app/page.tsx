@@ -3,6 +3,7 @@ import { QueryForm } from "@/components/query-form";
 import { ResultsPanel } from "@/components/results-panel";
 import { ErrorCard } from "@/components/error-card";
 import { Toast } from "@/components/toast";
+import { getPublicApiBaseUrl, getServerApiBaseUrl } from "@/lib/api-base-url";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -58,8 +59,13 @@ type ResourcePageResult = {
   } | null;
 };
 
+type FilterPair = {
+  key: string;
+  value: string;
+};
+
 const defaultCatalog: ResourceCatalog = {
-  baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080",
+  baseUrl: getPublicApiBaseUrl(),
   resources: [],
 };
 const fullFetchBatchSize = 250;
@@ -72,18 +78,10 @@ const reservedParams = new Set([
   "codigo_municipio",
 ]);
 
-function getApiBaseUrl() {
-  return (
-    process.env.API_INTERNAL_URL ??
-    process.env.NEXT_PUBLIC_API_URL ??
-    "http://localhost:8080"
-  ).replace(/\/$/, "");
-}
-
 async function getCatalog(): Promise<ResourceCatalog> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/resources`, {
-      next: { revalidate: 3600 },
+    const response = await fetch(`${getServerApiBaseUrl()}/api/resources`, {
+      cache: "no-store",
     });
     if (!response.ok) return defaultCatalog;
     return (await response.json()) as ResourceCatalog;
@@ -95,8 +93,8 @@ async function getCatalog(): Promise<ResourceCatalog> {
 async function getMunicipalities(): Promise<MunicipalityRecord[]> {
   try {
     const response = await fetch(
-      `${getApiBaseUrl()}/api/resources/municipios?page=1&pageSize=250`,
-      { next: { revalidate: 3600 } }
+      `${getServerApiBaseUrl()}/api/resources/municipios?page=1&pageSize=250`,
+      { cache: "no-store" }
     );
     if (!response.ok) return [];
     const payload = (await response.json()) as PaginatedEnvelope;
@@ -114,7 +112,7 @@ async function fetchResourceEnvelope(
 ): Promise<ResourcePageResult> {
   if (!resource) return { payload: null, error: null };
 
-  const url = new URL(`${getApiBaseUrl()}/api/resources/${resource}`);
+  const url = new URL(`${getServerApiBaseUrl()}/api/resources/${resource}`);
   url.searchParams.set("page", String(page));
   url.searchParams.set("pageSize", String(pageSize));
   filters.forEach((f) => {
@@ -155,7 +153,7 @@ async function fetchResourceEnvelope(
       error: {
         status: 0,
         title: "Falha de conexao",
-        detail: `Nao foi possivel conectar ao servidor em ${getApiBaseUrl()}.`,
+        detail: `Nao foi possivel conectar ao servidor em ${getServerApiBaseUrl()}.`,
       },
     };
   }
@@ -174,6 +172,45 @@ function getFetchBatchSize(resource: ResourceDescriptor | null | undefined) {
   return usesSourcePagination(resource)
     ? sourceFetchBatchSize
     : fullFetchBatchSize;
+}
+
+function normalizeSearchValue(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+    .toLowerCase();
+}
+
+function applyLocalFilterFallback(
+  payload: PaginatedEnvelope,
+  filters: FilterPair[]
+) {
+  const filteredItems = payload.items.filter((item) =>
+    filters.every((filter) => {
+      const rawValue = item[filter.key];
+      if (rawValue == null) {
+        return false;
+      }
+
+      const filterValue = normalizeSearchValue(filter.value);
+      const itemValue = normalizeSearchValue(String(rawValue));
+
+      if (!filterValue) {
+        return true;
+      }
+
+      return itemValue.includes(filterValue);
+    })
+  );
+
+  return {
+    ...payload,
+    items: filteredItems,
+    totalItems: filteredItems.length,
+    totalPages: filteredItems.length === 0 ? 0 : 1,
+    page: 1,
+  } satisfies PaginatedEnvelope;
 }
 
 async function getResourcePage(
@@ -242,6 +279,14 @@ function getMissingRequiredParameters(
   });
 }
 
+function supportsMunicipality(resource: ResourceDescriptor | null) {
+  return Boolean(
+    resource?.queryParameters.some(
+      (parameter) => parameter.name === "codigo_municipio"
+    )
+  );
+}
+
 export default async function Home({
   searchParams,
 }: {
@@ -269,35 +314,60 @@ export default async function Home({
   const page = 1;
   const pageSize = getFetchBatchSize(selectedResource);
   const dynamicFilters = filterResourceFilters(requestFilters, selectedResource);
+  const shouldUseMunicipality = supportsMunicipality(selectedResource);
+  const effectiveMunicipalityCode = shouldUseMunicipality
+    ? selectedMunicipalityCode
+    : "";
   const missingRequiredParameters = getMissingRequiredParameters(
     selectedResource,
     dynamicFilters,
-    selectedMunicipalityCode
+    effectiveMunicipalityCode
   );
   const selectedMunicipality =
     municipalities.find(
-      (m) => m.codigo_municipio === selectedMunicipalityCode
+      (m) => m.codigo_municipio === effectiveMunicipalityCode
     ) ?? null;
 
   const { payload, error } =
     missingRequiredParameters.length === 0
       ? await getResourcePage(selectedResourceKey, [
           ...dynamicFilters,
-          ...(selectedMunicipalityCode
-            ? [{ key: "codigo_municipio", value: selectedMunicipalityCode }]
+          ...(effectiveMunicipalityCode
+            ? [{ key: "codigo_municipio", value: effectiveMunicipalityCode }]
             : []),
         ], pageSize)
       : { payload: null, error: null };
 
+  const filteredPayload =
+    payload &&
+    selectedResource &&
+    !usesSourcePagination(selectedResource) &&
+    dynamicFilters.length > 0 &&
+    payload.items.length === 0
+      ? await (async () => {
+          const baseResult = await getResourcePage(selectedResourceKey, [
+            ...(effectiveMunicipalityCode
+              ? [{ key: "codigo_municipio", value: effectiveMunicipalityCode }]
+              : []),
+          ], pageSize);
+
+          if (!baseResult.payload) {
+            return payload;
+          }
+
+          return applyLocalFilterFallback(baseResult.payload, dynamicFilters);
+        })()
+      : payload;
+
   const hasDataAlert = Boolean(
-    payload && payload.items.length > 0 && selectedMunicipality
+    filteredPayload && filteredPayload.items.length > 0 && selectedMunicipality
   );
 
   return (
     <div className="min-h-screen bg-background">
       {hasDataAlert && selectedMunicipality && (
         <Toast
-          message={`${payload?.items.length} registros retornados para ${selectedMunicipality.nome_municipio}`}
+          message={`${filteredPayload?.items.length} registros retornados para ${selectedMunicipality.nome_municipio}`}
           type="success"
         />
       )}
@@ -329,7 +399,7 @@ export default async function Home({
                 page={page}
                 pageSize={pageSize}
                 resources={catalog.resources}
-                selectedMunicipalityCode={selectedMunicipalityCode}
+                selectedMunicipalityCode={effectiveMunicipalityCode}
                 selectedResource={selectedResourceKey}
               />
             </div>
@@ -345,15 +415,15 @@ export default async function Home({
             />
           )}
 
-          {payload && (
+          {filteredPayload && (
             <ResultsPanel
-              payload={payload}
+              payload={filteredPayload}
               filters={dynamicFilters}
               selectedResource={selectedResourceKey}
               resourceCategory={selectedResource?.category ?? null}
               municipality={selectedMunicipality}
-              apiBaseUrl={catalog.baseUrl}
-              selectedMunicipalityCode={selectedMunicipalityCode}
+              apiBaseUrl={getPublicApiBaseUrl()}
+              selectedMunicipalityCode={effectiveMunicipalityCode}
               requestPageSize={pageSize}
             />
           )}

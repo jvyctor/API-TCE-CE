@@ -12,6 +12,8 @@ const fieldOverrides: Record<string, string> = {
   numero_documento_negociante: "Documento do negociante",
   valor_total_fixado: "Valor total fixado",
   numero_perc_sup: "Percentual de suplementacao",
+  codigo_funcao: "Codigo da funcao",
+  nome_funcao: "Nome da funcao",
 };
 
 const contextualFieldOverrides: Record<string, Record<string, string>> = {
@@ -61,6 +63,10 @@ const contextualFieldOverrides: Record<string, Record<string, string>> = {
   programas: {
     codigo_programa: "Codigo",
     nome_programa: "Nome",
+  },
+  funcoes: {
+    codigo_funcao: "Codigo da funcao",
+    nome_funcao: "Nome da funcao",
   },
   dados_orcamentos: {
     valor_total_fixado_orcamento: "Valor total fixado",

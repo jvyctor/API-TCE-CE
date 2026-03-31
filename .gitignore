@@ -12,3 +12,4 @@ TestResults/
 .artifacts/
 .dotnet/
 .nuget/
+.codex-tmp/

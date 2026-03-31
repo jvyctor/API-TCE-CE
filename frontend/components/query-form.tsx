@@ -50,16 +50,35 @@ type ValidationRule = {
   inputMode?: "numeric" | "text";
 };
 
+type NavigateOptions = {
+  shouldRefresh?: boolean;
+  hardReload?: boolean;
+};
+
 const reserved = new Set(["codigo_municipio"]);
 const fullFetchPageSize = 250;
 const sourceFetchPageSize = 100;
 
 const parameterHelp: Record<string, string> = {
-  exercicio_orcamento: "Use o ano no formato yyyymm. Exemplo: 2024 -> 202400.",
-  data_contrato: "Formato yyyy-mm-dd ou intervalo yyyy-mm-dd_yyyy-mm-dd.",
-  data_realizacao_autuacao_licitacao: "Formato yyyy-mm-dd ou intervalo yyyy-mm-dd_yyyy-mm-dd.",
-  data_realizacao_licitacao: "Formato yyyy-mm-dd ou intervalo yyyy-mm-dd_yyyy-mm-dd.",
-  data_referencia_empenho: "Formato yyyymm. Exemplo: 202401."
+  exercicio_orcamento: "Selecione o exercicio.",
+  data_contrato: "Escolha uma data ou intervalo.",
+  data_realizacao_autuacao_licitacao: "Escolha uma data ou intervalo.",
+  data_realizacao_licitacao: "Escolha uma data ou intervalo.",
+  data_aquisicao_bem: "Escolha uma data ou intervalo.",
+  data_abertura_credito: "Escolha uma data ou intervalo.",
+  data_emissao_empenho: "Escolha uma data ou intervalo.",
+  data_avaliacao: "Escolha uma data ou intervalo.",
+  data_liquidacao: "Escolha uma data ou intervalo.",
+  data_movimentacao: "Escolha uma data ou intervalo.",
+  data_publicacao_edital: "Escolha uma data ou intervalo.",
+  data_referencia_empenho: "Informe AAAAMM.",
+  data_referencia_agente_publico: "Informe AAAAMM.",
+  data_referencia_bem: "Informe AAAAMM.",
+  data_referencia: "Informe AAAAMM.",
+  data_ref_mf: "Informe AAAAMM.",
+  data_ref_pagamento: "Informe AAAAMM.",
+  data_ref_nota: "Informe AAAAMM.",
+  data_referencia_nota_fiscal: "Informe AAAAMM."
 };
 
 const intervalDateRule: ValidationRule = {
@@ -100,8 +119,30 @@ function getValidationRule(parameterName: string): ValidationRule | null {
   return null;
 }
 
-function renderHelpText(parameter: QueryParameterOption) {
-  return parameter.description ?? parameterHelp[parameter.name] ?? `Tipo: ${parameter.type ?? "string"}`;
+function buildFiscalYearOptions() {
+  const currentYear = new Date().getFullYear();
+  const options: Array<{ label: string; value: string }> = [];
+
+  for (let year = currentYear; year >= 2008; year -= 1) {
+    options.push({
+      label: String(year),
+      value: `${year}00`
+    });
+  }
+
+  return options;
+}
+
+function renderHelpText(parameter: QueryParameterOption, isOptional = false) {
+  if (parameterHelp[parameter.name]) {
+    return parameterHelp[parameter.name];
+  }
+
+  if (!isOptional) {
+    return "Preencha este campo.";
+  }
+
+  return parameter.description ?? `Tipo: ${parameter.type ?? "string"}`;
 }
 
 function parseIntervalDateValue(value: string) {
@@ -127,6 +168,14 @@ function getFetchPageSize(resource: ResourceOption | undefined) {
   return usesSourcePagination(resource)
     ? sourceFetchPageSize
     : fullFetchPageSize;
+}
+
+function supportsMunicipality(resource: ResourceOption | undefined) {
+  return Boolean(
+    resource?.queryParameters.some(
+      (parameter) => parameter.name === "codigo_municipio"
+    )
+  );
 }
 
 export function QueryForm({
@@ -180,12 +229,25 @@ export function QueryForm({
   const optionalParameters = selectedMetadata?.queryParameters.filter(
     (p) => !p.required && !reserved.has(p.name)
   ) ?? [];
+  const fiscalYearOptions = useMemo(() => buildFiscalYearOptions(), []);
+  const shouldShowMunicipality = supportsMunicipality(selectedMetadata);
+  const selectedResourceMetadata = useMemo(
+    () => resources.find((resource) => resource.key === selectedResource) ?? resources[0],
+    [resources, selectedResource]
+  );
+
   useEffect(() => {
     setActiveResource(selectedResource);
     setMunicipalityCode(selectedMunicipalityCode);
     setLocalPage(page);
     setLocalPageSize(pageSize);
-    setShowOptional(false);
+    setShowOptional(
+      Boolean(
+        selectedResourceMetadata &&
+        selectedResourceMetadata.queryParameters.every((parameter) => !parameter.required) &&
+        selectedResourceMetadata.queryParameters.some((parameter) => !reserved.has(parameter.name))
+      )
+    );
     setInvalidFields([]);
     setDateRangeErrors({});
     setQuantity(
@@ -203,7 +265,7 @@ export function QueryForm({
       });
       return entries;
     });
-  }, [initialFilters, page, pageSize, selectedMunicipalityCode, selectedResource]);
+  }, [initialFilters, page, pageSize, selectedMunicipalityCode, selectedResource, selectedResourceMetadata]);
 
   function clearInvalidField(fieldName: string) {
     setInvalidFields((current) => current.filter((entry) => entry !== fieldName));
@@ -243,84 +305,49 @@ export function QueryForm({
     return missingFields.length === 0;
   }
 
-  function navigateWithParams(params: URLSearchParams) {
+  function navigateWithParams(
+    params: URLSearchParams,
+    { shouldRefresh = false, hardReload = false }: NavigateOptions = {}
+  ) {
     const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
-  }
+    const targetUrl = query ? `${pathname}?${query}` : pathname;
 
-  function buildResourceParams(resourceKey: string) {
-    const nextResource = resources.find((resource) => resource.key === resourceKey);
-    const params = new URLSearchParams();
-
-    if (!nextResource) return params;
-
-    const nextPageSize = getFetchPageSize(nextResource);
-    params.set("resource", resourceKey);
-    params.set("page", "1");
-    params.set("pageSize", String(nextPageSize));
-
-    if (municipalityCode) {
-      params.set("codigo_municipio", municipalityCode);
-    }
-
-    const requiredNames = new Set(
-      nextResource.queryParameters.map((parameter) => parameter.name)
-    );
-
-    return params;
-  }
-
-  function submitForm() {
-    shouldHighlightValidationRef.current = false;
-    formRef.current?.requestSubmit();
-  }
-
-  function handleReset() {
-    setActiveResource(resources[0]?.key ?? "");
-    setMunicipalityCode("");
-    setLocalPage(1);
-    setLocalPageSize(getFetchPageSize(resources[0]));
-    setQuantity(String(getFetchPageSize(resources[0])));
-    setOffset("0");
-    startTransition(() => {
-      router.replace(pathname);
-    });
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const formData = new FormData(event.currentTarget);
-    const params = new URLSearchParams();
-    const resourceValue = String(formData.get("resource") ?? activeResource).trim();
-    const targetResource = resources.find((resource) => resource.key === resourceValue) ?? selectedMetadata;
-    const allowedParameterNames = new Set(
-      (targetResource?.queryParameters ?? []).map((parameter) => parameter.name)
-    );
-    const targetPageSize = getFetchPageSize(targetResource);
-    const municipalityValue = String(
-      formData.get("codigo_municipio") ?? municipalityCode
-    ).trim();
-
-    const hasInvalidDateRange = Object.values(dateRanges).some(
-      ({ start, end }) => Boolean(start && end && end < start)
-    );
-
-    const isValid = validateRequiredFields(formData, municipalityValue);
-    shouldHighlightValidationRef.current = true;
-
-    if (!isValid || hasInvalidDateRange) {
+    if (
+      hardReload &&
+      typeof window !== "undefined" &&
+      process.env.NODE_ENV !== "test"
+    ) {
+      window.location.replace(targetUrl);
       return;
     }
 
-    if (resourceValue) {
-      params.set("resource", resourceValue);
-    }
+    router.push(targetUrl);
 
+    if (shouldRefresh) {
+      router.refresh();
+    }
+  }
+
+  function buildQueryParams(
+    formData: FormData,
+    resourceValue: string,
+    targetResource: ResourceOption | undefined,
+    municipalityValue: string
+  ) {
+    const params = new URLSearchParams();
+
+    if (!targetResource) return params;
+
+    const targetPageSize = getFetchPageSize(targetResource);
+    const allowedParameterNames = new Set(
+      targetResource.queryParameters.map((parameter) => parameter.name)
+    );
+
+    params.set("resource", resourceValue);
     params.set("page", "1");
     params.set("pageSize", String(targetPageSize));
 
-    if (municipalityValue) {
+    if (municipalityValue && supportsMunicipality(targetResource)) {
       params.set("codigo_municipio", municipalityValue);
     }
 
@@ -348,7 +375,50 @@ export function QueryForm({
       params.set(key, normalizedValue);
     }
 
-    navigateWithParams(params);
+    return params;
+  }
+
+  function submitForm() {
+    shouldHighlightValidationRef.current = false;
+    formRef.current?.requestSubmit();
+  }
+
+  function handleReset() {
+    setActiveResource(resources[0]?.key ?? "");
+    setMunicipalityCode("");
+    setLocalPage(1);
+    setLocalPageSize(getFetchPageSize(resources[0]));
+    setQuantity(String(getFetchPageSize(resources[0])));
+    setOffset("0");
+    startTransition(() => {
+      router.replace(pathname);
+    });
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const resourceValue = String(formData.get("resource") ?? activeResource).trim();
+    const targetResource = resources.find((resource) => resource.key === resourceValue) ?? selectedMetadata;
+    const municipalityValue = String(
+      formData.get("codigo_municipio") ?? municipalityCode
+    ).trim();
+
+    const hasInvalidDateRange = Object.values(dateRanges).some(
+      ({ start, end }) => Boolean(start && end && end < start)
+    );
+
+    const isValid = validateRequiredFields(formData, municipalityValue);
+    shouldHighlightValidationRef.current = true;
+
+    if (!isValid || hasInvalidDateRange) {
+      return;
+    }
+
+    navigateWithParams(
+      buildQueryParams(formData, resourceValue, targetResource, municipalityValue)
+    );
   }
 
   function renderInput(parameter: QueryParameterOption, isOptional = false) {
@@ -462,7 +532,7 @@ export function QueryForm({
           </div>
           <p id={helpId} className="flex items-start gap-1.5 text-xs text-muted-foreground">
             <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
-            <span>{renderHelpText(parameter)}</span>
+            <span>{renderHelpText(parameter, isOptional)}</span>
           </p>
           {isInvalid && (
             <p className="text-xs font-medium text-destructive">Preencha este campo obrigatorio para consultar.</p>
@@ -471,6 +541,55 @@ export function QueryForm({
             <p className="text-xs font-medium text-destructive">{dateRangeError}</p>
           )}
           <p className="text-xs text-primary">Selecione uma data unica ou um intervalo pelo calendario.</p>
+        </div>
+      );
+    }
+
+    if (parameter.name === "exercicio_orcamento") {
+      return (
+        <div className="space-y-1.5">
+          <label htmlFor={id} className="flex items-center gap-2 text-sm font-medium text-foreground">
+            {formatFieldLabel(parameter.name, activeResource)}
+            {!isOptional && (
+              <span className="rounded bg-warning/20 px-1.5 py-0.5 text-xs font-medium text-warning">
+                Obrigatorio
+              </span>
+            )}
+          </label>
+          <div className="relative">
+            <select
+              id={id}
+              name={parameter.name}
+              defaultValue={filterMap.get(parameter.name) ?? ""}
+              aria-describedby={helpId}
+              aria-invalid={isInvalid}
+              className={cn(
+                "block w-full appearance-none rounded-md border bg-card px-3 py-2.5 pr-10 text-sm text-foreground",
+                "transition-colors focus:outline-none focus:ring-2",
+                isInvalid
+                  ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                  : "focus:border-primary focus:ring-primary/20"
+              )}
+              onChange={() => {
+                clearInvalidField(parameter.name);
+              }}
+            >
+              <option value="">Selecione o exercicio</option>
+              {fiscalYearOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          </div>
+          <p id={helpId} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+            <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+            <span>{renderHelpText(parameter, isOptional)}</span>
+          </p>
+          {isInvalid && (
+            <p className="text-xs font-medium text-destructive">Preencha este campo obrigatorio para consultar.</p>
+          )}
         </div>
       );
     }
@@ -518,7 +637,7 @@ export function QueryForm({
         />
         <p id={helpId} className="flex items-start gap-1.5 text-xs text-muted-foreground">
           <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
-          <span>{renderHelpText(parameter)}</span>
+          <span>{renderHelpText(parameter, isOptional)}</span>
         </p>
         {validationRule && (
           <p className="text-xs text-primary">{validationRule.example}</p>
@@ -550,38 +669,39 @@ export function QueryForm({
                 Configure o endpoint antes de consultar
               </h3>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">
-                Escolha o endpoint, defina o municipio e preencha os filtros obrigatorios. A navegacao da consulta fica concentrada no mesmo card, sem repetir informacoes do painel lateral.
+                Escolha o endpoint e preencha os filtros disponiveis. O municipio so aparece quando aquele recurso realmente exige esse dado.
               </p>
             </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-2">
-              <label htmlFor="municipality" className="block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Municipio
-              </label>
-              <div className="relative">
-                <select
-                  id="municipality"
-                  name="codigo_municipio"
-                  value={municipalityCode}
-                  onChange={(e) => {
-                    setMunicipalityCode(e.target.value);
-                    clearInvalidField("codigo_municipio");
-                    setTimeout(submitForm, 0);
-                  }}
-                  className="block w-full appearance-none rounded-[20px] border border-border/75 bg-card/80 px-4 py-3.5 pr-10 text-sm font-medium text-foreground shadow-[0_6px_20px_hsl(190_18%_30%_/_0.05)] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value="">Selecione um municipio</option>
-                  {municipalities.map((m) => (
-                    <option key={m.codigo_municipio} value={m.codigo_municipio}>
-                      {m.nome_municipio} ({m.codigo_municipio})
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            {shouldShowMunicipality && (
+              <div className="space-y-2">
+                <label htmlFor="municipality" className="block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Municipio
+                </label>
+                <div className="relative">
+                  <select
+                    id="municipality"
+                    name="codigo_municipio"
+                    value={municipalityCode}
+                    onChange={(e) => {
+                      setMunicipalityCode(e.target.value);
+                      clearInvalidField("codigo_municipio");
+                    }}
+                    className="block w-full appearance-none rounded-[20px] border border-border/75 bg-card/80 px-4 py-3.5 pr-10 text-sm font-medium text-foreground shadow-[0_6px_20px_hsl(190_18%_30%_/_0.05)] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="">Selecione um municipio</option>
+                    {municipalities.map((m) => (
+                      <option key={m.codigo_municipio} value={m.codigo_municipio}>
+                        {m.nome_municipio} ({m.codigo_municipio})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <label htmlFor="resource" className="block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -597,12 +717,37 @@ export function QueryForm({
                     const nextMetadata = resources.find((resource) => resource.key === nextResource);
                     const nextPageSize = getFetchPageSize(nextMetadata);
                     setActiveResource(nextResource);
+                    setMunicipalityCode((current) =>
+                      supportsMunicipality(nextMetadata) ? current : ""
+                    );
                     setLocalPage(1);
                     setLocalPageSize(nextPageSize);
                     setQuantity(String(nextPageSize));
                     setOffset("0");
+                    setInvalidFields([]);
+                    setDateRangeErrors({});
                     setDateRanges({});
-                    navigateWithParams(buildResourceParams(nextResource));
+                    setShowOptional(
+                      Boolean(
+                        nextMetadata &&
+                        nextMetadata.queryParameters.every((parameter) => !parameter.required) &&
+                        nextMetadata.queryParameters.some((parameter) => !reserved.has(parameter.name))
+                      )
+                    );
+                    const formData = new FormData(formRef.current ?? undefined);
+                    formData.set("resource", nextResource);
+                    if (!supportsMunicipality(nextMetadata)) {
+                      formData.delete("codigo_municipio");
+                    }
+                    navigateWithParams(
+                      buildQueryParams(
+                        formData,
+                        nextResource,
+                        nextMetadata,
+                        supportsMunicipality(nextMetadata) ? municipalityCode : ""
+                      ),
+                      { shouldRefresh: true, hardReload: true }
+                    );
                   }}
                   className="block w-full appearance-none rounded-[20px] border border-border/75 bg-card/80 px-4 py-3.5 pr-10 text-sm font-medium text-foreground shadow-[0_6px_20px_hsl(190_18%_30%_/_0.05)] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >

@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-
-function getApiBaseUrl() {
-  return (
-    process.env.API_INTERNAL_URL ??
-    process.env.NEXT_PUBLIC_API_URL ??
-    "http://localhost:8080"
-  ).replace(/\/$/, "");
-}
+import { getServerApiBaseUrl } from "@/lib/api-base-url";
 
 export async function GET(request: NextRequest) {
-  const targetUrl = new URL(`${getApiBaseUrl()}/api/resources`);
+  const targetUrl = new URL(`${getServerApiBaseUrl()}/api/resources`);
   request.nextUrl.searchParams.forEach((value, key) => {
     targetUrl.searchParams.append(key, value);
   });

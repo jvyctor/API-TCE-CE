@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Paper from "@mui/material/Paper";
 import TableContainer from "@mui/material/TableContainer";
@@ -45,7 +45,10 @@ type ResultsPanelProps = {
 
 const csvDelimiter = ";";
 const displayBatchSize = 250;
-const hiddenTableColumns = new Set(["codigo_municipio"]);
+const hiddenTableColumns = new Set(["codigo_municipio", "exercicio_orcamento"]);
+const ngrokBypassHeaders = {
+  "ngrok-skip-browser-warning": "1",
+};
 
 function readBooleanMetadata(metadata: Record<string, unknown>, key: string) {
   return metadata[key] === true;
@@ -206,6 +209,7 @@ function ResultsTable({
   isExporting,
   onExport,
   resourceKey,
+  gridContainerRef,
 }: {
   items: Array<Record<string, unknown>>;
   resourceLabel: string;
@@ -214,6 +218,7 @@ function ResultsTable({
   isExporting: boolean;
   onExport: () => Promise<void>;
   resourceKey: string;
+  gridContainerRef: RefObject<HTMLDivElement | null>;
 }) {
   const columns = Array.from(
     new Set(
@@ -289,88 +294,123 @@ function ResultsTable({
         </div>
       </div>
 
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          width: "100%",
-          maxWidth: "100%",
-          backgroundColor: "hsl(var(--card))",
-          borderRadius: "0 0 1rem 1rem",
-          borderTop: "1px solid hsl(var(--border) / 0.45)",
-          "&::-webkit-scrollbar": {
-            width: 8,
-            height: 8,
-          },
-          "&::-webkit-scrollbar-track": {
-            backgroundColor: "hsl(var(--muted))",
-          },
-          "&::-webkit-scrollbar-thumb": {
-            backgroundColor: "hsl(var(--muted-foreground) / 0.32)",
-            borderRadius: 999,
-          },
-        }}
-      >
-        <DataGrid
-          rows={rows}
-          columns={gridColumns}
-          disableRowSelectionOnClick
-          hideFooter
-          rowHeight={56}
-          columnHeaderHeight={56}
-          disableColumnResize={false}
+      <div className="border-t border-border/70 bg-card p-4 md:hidden">
+        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Registros carregados
+        </div>
+        <div className="space-y-3">
+          {items.map((item, index) => (
+            <article
+              key={`${resourceKey}-mobile-${index}`}
+              className="rounded-2xl border border-border/80 bg-background/95 p-4 shadow-[0_6px_18px_hsl(200_18%_18%_/_0.05)]"
+            >
+              <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+                Registro {index + 1}
+              </div>
+              <dl className="space-y-2">
+                {columns.map((column) => (
+                  <div
+                    key={`${resourceKey}-mobile-${index}-${column}`}
+                    className="rounded-xl border border-border/60 bg-card/80 px-3 py-2"
+                  >
+                    <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      {formatFieldLabel(column, resourceKey)}
+                    </dt>
+                    <dd className="mt-1 break-words text-sm leading-6 text-foreground">
+                      {formatCellValue(item[column])}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <div ref={gridContainerRef} className="hidden md:block">
+        <TableContainer
+          component={Paper}
+          elevation={0}
           sx={{
-            "--DataGrid-overlayHeight": "160px",
-            border: 0,
-            minWidth: "100%",
+            width: "100%",
+            maxWidth: "100%",
             backgroundColor: "hsl(var(--card))",
-            "& .MuiDataGrid-main": {
-              overflow: "auto",
-              maxHeight: "65vh",
+            borderRadius: "0 0 1rem 1rem",
+            borderTop: "1px solid hsl(var(--border) / 0.45)",
+            "&::-webkit-scrollbar": {
+              width: 8,
+              height: 8,
             },
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: "hsl(var(--secondary))",
-              color: "hsl(var(--secondary-foreground))",
-              borderBottom: "1px solid hsl(var(--border) / 0.8)",
+            "&::-webkit-scrollbar-track": {
+              backgroundColor: "hsl(var(--muted))",
             },
-            "& .MuiDataGrid-columnHeaderTitle": {
-              fontWeight: 700,
-              fontSize: "0.78rem",
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              whiteSpace: "normal",
-              lineHeight: 1.25,
-            },
-            "& .MuiDataGrid-cell": {
-              alignItems: "start",
-              py: 1.5,
-              color: "hsl(var(--foreground))",
-              borderBottom: "1px solid hsl(var(--border) / 0.5)",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              lineHeight: 1.65,
-            },
-            "& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within": {
-              outline: "none",
-            },
-            "& .MuiDataGrid-row:nth-of-type(odd)": {
-              backgroundColor: "hsl(var(--card))",
-            },
-            "& .MuiDataGrid-row:nth-of-type(even)": {
-              backgroundColor: "hsl(var(--muted) / 0.45)",
-            },
-            "& .MuiDataGrid-row:hover": {
-              backgroundColor: "hsl(var(--secondary) / 0.72)",
-            },
-            "& .MuiDataGrid-columnSeparator": {
-              color: "hsl(var(--border) / 0.8)",
-            },
-            "& .MuiDataGrid-virtualScroller": {
-              overflowX: "auto",
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: "hsl(var(--muted-foreground) / 0.32)",
+              borderRadius: 999,
             },
           }}
-        />
-      </TableContainer>
+        >
+          <DataGrid
+            rows={rows}
+            columns={gridColumns}
+            disableRowSelectionOnClick
+            hideFooter
+            rowHeight={56}
+            columnHeaderHeight={56}
+            disableColumnResize={false}
+            sx={{
+              "--DataGrid-overlayHeight": "160px",
+              border: 0,
+              minWidth: "100%",
+              backgroundColor: "hsl(var(--card))",
+              "& .MuiDataGrid-main": {
+                overflow: "auto",
+                maxHeight: "65vh",
+              },
+              "& .MuiDataGrid-columnHeaders": {
+                backgroundColor: "hsl(var(--secondary))",
+                color: "hsl(var(--secondary-foreground))",
+                borderBottom: "1px solid hsl(var(--border) / 0.8)",
+              },
+              "& .MuiDataGrid-columnHeaderTitle": {
+                fontWeight: 700,
+                fontSize: "0.78rem",
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                whiteSpace: "normal",
+                lineHeight: 1.25,
+              },
+              "& .MuiDataGrid-cell": {
+                alignItems: "start",
+                py: 1.5,
+                color: "hsl(var(--foreground))",
+                borderBottom: "1px solid hsl(var(--border) / 0.5)",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                lineHeight: 1.65,
+              },
+              "& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within": {
+                outline: "none",
+              },
+              "& .MuiDataGrid-row:nth-of-type(odd)": {
+                backgroundColor: "hsl(var(--card))",
+              },
+              "& .MuiDataGrid-row:nth-of-type(even)": {
+                backgroundColor: "hsl(var(--muted) / 0.45)",
+              },
+              "& .MuiDataGrid-row:hover": {
+                backgroundColor: "hsl(var(--secondary) / 0.72)",
+              },
+              "& .MuiDataGrid-columnSeparator": {
+                color: "hsl(var(--border) / 0.8)",
+              },
+              "& .MuiDataGrid-virtualScroller": {
+                overflowX: "auto",
+              },
+            }}
+          />
+        </TableContainer>
+      </div>
     </div>
   );
 }
@@ -388,16 +428,15 @@ export function ResultsPanel({
   const [currentPayload, setCurrentPayload] = useState(payload);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [resolvedExactTotal, setResolvedExactTotal] = useState<number | null>(null);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const pageCacheRef = useRef(new Map<number, PaginatedEnvelope>());
+  const gridContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setCurrentPayload(payload);
     setIsLoadingMore(false);
     setIsExporting(false);
-    setResolvedExactTotal(null);
     setLoadMoreError(null);
     setExportError(null);
     pageCacheRef.current = new Map();
@@ -425,13 +464,12 @@ export function ResultsPanel({
     currentPayload.metadata,
     "sourcePagination"
   );
+  const totalItemsExact = readBooleanMetadata(currentPayload.metadata, "totalItemsExact");
   const hasNextPage = hasMorePages || currentPayload.page < currentPayload.totalPages;
   const displayBatchCount = Math.max(1, Math.ceil(currentPayload.items.length / displayBatchSize));
-  const visibleTotalLabel = resolvedExactTotal != null
-    ? `Total exato: ${resolvedExactTotal.toLocaleString("pt-BR")}`
-    : !usesSourcePagination
-      ? `Total exato: ${currentPayload.totalItems.toLocaleString("pt-BR")}`
-      : `Total minimo conhecido: ${currentPayload.items.length.toLocaleString("pt-BR")}+`;
+  const visibleTotalLabel = totalItemsExact || !usesSourcePagination
+    ? `Total informado: ${currentPayload.totalItems.toLocaleString("pt-BR")}`
+    : `Carregados ate agora: ${currentPayload.items.length.toLocaleString("pt-BR")} de ${currentPayload.totalItems.toLocaleString("pt-BR")}`;
 
   async function fetchEnvelope(page: number) {
     const cached = pageCacheRef.current.get(page);
@@ -447,19 +485,27 @@ export function ResultsPanel({
         selectedMunicipalityCode,
         filters
       ),
-      buildApiUrl(
-        apiBaseUrl,
-        selectedResource,
-        page,
-        requestPageSize,
-        selectedMunicipalityCode,
-        filters
-      ),
     ];
+
+    if (apiBaseUrl.trim()) {
+      requestUrls.push(
+        buildApiUrl(
+          apiBaseUrl,
+          selectedResource,
+          page,
+          requestPageSize,
+          selectedMunicipalityCode,
+          filters
+        )
+      );
+    }
 
     for (const requestUrl of requestUrls) {
       try {
-        const response = await fetch(requestUrl, { cache: "no-store" });
+        const response = await fetch(requestUrl, {
+          cache: "no-store",
+          headers: ngrokBypassHeaders,
+        });
         if (!response.ok) {
           continue;
         }
@@ -480,12 +526,17 @@ export function ResultsPanel({
       return;
     }
 
+    const initialPayload = currentPayload;
+    if (!initialPayload) {
+      return;
+    }
+
     setIsLoadingMore(true);
     setLoadMoreError(null);
 
     try {
-      let aggregatedPayload = currentPayload;
-      let aggregatedItems = [...currentPayload.items];
+      let aggregatedPayload = initialPayload;
+      let aggregatedItems = [...initialPayload.items];
       const startingCount = aggregatedItems.length;
       const maxPagesPerClick = Math.max(
         1,
@@ -523,37 +574,6 @@ export function ResultsPanel({
   }
 
   useEffect(() => {
-    if (!usesSourcePagination || resolvedExactTotal != null) {
-      return;
-    }
-
-    let cancelled = false;
-
-    async function resolveExactTotal() {
-      const allItems = await fetchAllUniqueItems();
-      if (!allItems || cancelled) {
-        return;
-      }
-
-      setResolvedExactTotal(allItems.length);
-    }
-
-    void resolveExactTotal();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    usesSourcePagination,
-    resolvedExactTotal,
-    selectedResource,
-    selectedMunicipalityCode,
-    requestPageSize,
-    filters,
-    apiBaseUrl,
-  ]);
-
-  useEffect(() => {
     if (!usesSourcePagination || isLoadingMore || !hasNextPage) {
       return;
     }
@@ -569,6 +589,43 @@ export function ResultsPanel({
     isLoadingMore,
     usesSourcePagination,
   ]);
+
+  useEffect(() => {
+    if (!hasNextPage) {
+      return;
+    }
+
+    const scrollerElement = gridContainerRef.current?.querySelector<HTMLElement>(
+      ".MuiDataGrid-virtualScroller"
+    );
+
+    if (!scrollerElement) {
+      return;
+    }
+
+    const stableScroller = scrollerElement;
+
+    function handleGridScroll() {
+      if (isLoadingMore) {
+        return;
+      }
+
+      const remainingDistance =
+        stableScroller.scrollHeight -
+        stableScroller.scrollTop -
+        stableScroller.clientHeight;
+
+      if (remainingDistance <= 240) {
+        void loadMoreRecords();
+      }
+    }
+
+    stableScroller.addEventListener("scroll", handleGridScroll, { passive: true });
+
+    return () => {
+      stableScroller.removeEventListener("scroll", handleGridScroll);
+    };
+  }, [hasNextPage, isLoadingMore, currentPayload.items.length]);
 
   async function exportAllRecords() {
     if (isExporting) {
@@ -661,20 +718,19 @@ export function ResultsPanel({
         isExporting={isExporting}
         onExport={exportAllRecords}
         resourceKey={selectedResource}
+        gridContainerRef={gridContainerRef}
       />
 
       <div className="surface-panel flex min-h-14 flex-col items-center justify-center gap-3 rounded-2xl px-4 py-4 sm:flex-row">
         {hasNextPage ? (
-          <button
-            type="button"
-            onClick={() => {
-              void loadMoreRecords();
-            }}
-            disabled={isLoadingMore || isExporting}
-            className="rounded-full border border-primary/20 bg-primary px-6 py-3 text-sm font-bold text-primary-foreground shadow-[0_14px_34px_hsl(var(--primary)/0.3)] transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-[0_18px_40px_hsl(var(--primary)/0.36)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
-          >
-            {isLoadingMore ? "Carregando..." : `Exibir mais ${displayBatchSize}`}
-          </button>
+          <div className="flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
+            {isLoadingMore && <CircularProgress size={16} sx={{ color: "currentColor" }} />}
+            <span>
+              {isLoadingMore
+                ? "Carregando mais registros..."
+                : "Role ate o fim da grade para carregar mais registros automaticamente."}
+            </span>
+          </div>
         ) : (
           <span className="text-sm text-muted-foreground">
             Todos os registros carregados.

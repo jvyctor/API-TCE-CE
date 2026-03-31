@@ -49,6 +49,63 @@ public sealed class TceCeSwaggerResourceCatalogTests
         }
     }
 
+    [Fact]
+    public void GetResources_LoadsSwaggerFromParentDirectory_WhenFileIsOutsideContentRoot()
+    {
+        var tempPath = Path.Combine(Path.GetTempPath(), $"tcece-{Guid.NewGuid():N}");
+        var contentRootPath = Path.Combine(tempPath, "src", "TceCeProxy.Api");
+        Directory.CreateDirectory(contentRootPath);
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(tempPath, "swagger-ui-init.js"),
+                """
+                window.onload = function() {
+                  var options = {
+                    "swaggerDoc": {
+                      "openapi": "3.0.0",
+                      "paths": {
+                        "/funcoes": {
+                          "get": {
+                            "summary": "Relacao de funcoes",
+                            "parameters": [
+                              {
+                                "name": "codigo_municipio",
+                                "required": true,
+                                "in": "query",
+                                "schema": { "type": "string" }
+                              }
+                            ],
+                            "tags": ["Documentacao referente a Orcamento municipal - SIM"]
+                          }
+                        }
+                      }
+                    }
+                  };
+                };
+                """);
+
+            var catalog = new TceCeSwaggerResourceCatalog(
+                new FakeEnvironment(contentRootPath),
+                Options.Create(new TceCeApiOptions
+                {
+                    SwaggerUiInitPath = "swagger-ui-init.js",
+                    Resources = new Dictionary<string, TceCeResourceDefinition>(StringComparer.OrdinalIgnoreCase)
+                }),
+                NullLogger<TceCeSwaggerResourceCatalog>.Instance);
+
+            Assert.True(catalog.TryGetResource("funcoes", out var resource));
+            Assert.Equal("funcoes", resource.Path);
+            Assert.Equal("Orcamento municipal", resource.Category);
+            Assert.Contains(resource.QueryParameters, parameter => parameter.Name == "codigo_municipio" && parameter.Required);
+        }
+        finally
+        {
+            Directory.Delete(tempPath, recursive: true);
+        }
+    }
+
     private sealed class FakeEnvironment(string contentRootPath) : IHostEnvironment
     {
         public string ApplicationName { get; set; } = "TceCeProxy.Api.Tests";

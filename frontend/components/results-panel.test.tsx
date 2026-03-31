@@ -1,6 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import { ResultsPanel } from "@/components/results-panel";
 
+class IntersectionObserverMock {
+  observe() {}
+  disconnect() {}
+  unobserve() {}
+}
+
+Object.defineProperty(window, "IntersectionObserver", {
+  writable: true,
+  value: IntersectionObserverMock,
+});
+
 const basePayload = {
   resource: "agentes_publicos",
   sourceUrl: "http://localhost:8080/api/resources/agentes_publicos",
@@ -13,11 +24,13 @@ const basePayload = {
       nome_servidor: "Maria Silva",
       cargo: "Analista",
       ativo: true,
+      exercicio_orcamento: "202600",
     },
     {
       nome_servidor: "Joao Souza",
       cargo: "Tecnico",
       ativo: false,
+      exercicio_orcamento: "202600",
     },
   ],
   metadata: {},
@@ -41,10 +54,12 @@ describe("ResultsPanel", () => {
     );
 
     expect(screen.getByRole("grid")).toBeInTheDocument();
-    expect(screen.getByText("Nome")).toBeInTheDocument();
-    expect(screen.getByText("Maria Silva")).toBeInTheDocument();
-    expect(screen.getByText("Sim")).toBeInTheDocument();
-    expect(screen.getByText("Nao")).toBeInTheDocument();
+    expect(screen.getAllByText("Nome").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Maria Silva").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Sim").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Nao").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Exercicio orcamentario")).not.toBeInTheDocument();
+    expect(screen.queryAllByText("202600")).toHaveLength(0);
   });
 
   it("renders other endpoints as a table too", () => {
@@ -65,7 +80,7 @@ describe("ResultsPanel", () => {
     expect(screen.getByText("Visualizacao tabular habilitada para o endpoint `Contrato`.")).toBeInTheDocument();
   });
 
-  it("renders a load more button below the results when another page exists", () => {
+  it("renders the automatic pagination hint when another page exists", () => {
     render(
       <ResultsPanel
         payload={{
@@ -85,7 +100,9 @@ describe("ResultsPanel", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Exibir mais 250" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Role ate o fim da grade para carregar mais registros automaticamente\.|Carregando mais registros\.\.\./)
+    ).toBeInTheDocument();
   });
 
   it("renders the full CSV export button", () => {

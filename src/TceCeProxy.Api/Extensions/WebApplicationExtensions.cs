@@ -41,7 +41,6 @@ public static class WebApplicationExtensions
         app.MapGet("/api/resources", (IOptions<TceCeApiOptions> options, ITceCeResourceCatalog catalog) =>
         {
             var configuredResources = catalog.GetResources()
-                .Where(resource => !string.Equals(resource.Key, "municipios", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(resource => resource.Value.Category)
                 .ThenBy(resource => resource.Key)
                 .Select(resource => new

@@ -111,6 +111,27 @@ Se quiser rodar com Docker:
 docker compose up --build
 ```
 
+## Deploy no Render
+
+O repositÃ³rio inclui um blueprint em `render.yaml` com dois serviÃ§os:
+
+- `tcece-proxy-api`: backend ASP.NET Core
+- `tcece-proxy-web`: frontend Next.js
+
+Fluxo recomendado no Render:
+
+1. Crie um novo Blueprint apontando para este repositÃ³rio.
+2. Deixe o Render criar os dois serviÃ§os do `render.yaml`.
+3. Depois que a API publicar, copie a URL pÃºblica dela.
+4. No serviÃ§o `tcece-proxy-web`, defina `NEXT_PUBLIC_API_URL` com a URL pÃºblica da API.
+5. FaÃ§a um redeploy do frontend.
+
+VariÃ¡veis importantes:
+
+- `API_INTERNAL_URL`: preenchida automaticamente pelo Render com a rede interna entre serviÃ§os
+- `NEXT_PUBLIC_API_URL`: deve apontar para a URL pÃºblica do backend
+- `TceCeApi__ApiKey` e `TceCeApi__ApiKeyHeaderName`: opcionais, apenas se a API remota exigir autenticaÃ§Ã£o
+
 ## Referências oficiais
 
 - Documentação: `https://api-dados-abertos.tce.ce.gov.br/docs/`

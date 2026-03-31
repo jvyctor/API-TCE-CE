@@ -127,6 +127,67 @@ public sealed class TceCeClientIntegrationTests
     }
 
     [Fact]
+    public async Task GetResourcePageAsync_AppliesLocalFilterFallback_WhenUpstreamReturnsEmptyForLocalResource()
+    {
+        var handler = new FakeHttpMessageHandler(request =>
+        {
+            var uri = request.RequestUri!.ToString();
+
+            if (uri.Contains("nome_funcao=saude", StringComparison.OrdinalIgnoreCase))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("[]", Encoding.UTF8, "application/json")
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """
+                    [
+                      { "codigo_funcao": "10", "nome_funcao": " Saúde" },
+                      { "codigo_funcao": "12", "nome_funcao": " Educação" }
+                    ]
+                    """,
+                    Encoding.UTF8,
+                    "application/json")
+            };
+        });
+
+        using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(
+            httpClient,
+            memoryCache,
+            new Dictionary<string, TceCeResourceDefinition>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["funcoes"] = new()
+                {
+                    Path = "funcoes",
+                    PaginationMode = TceCePaginationMode.Local,
+                    QueryParameters =
+                    [
+                        new() { Name = "nome_funcao", Required = false }
+                    ]
+                }
+            });
+
+        var page = await client.GetResourcePageAsync(
+            "funcoes",
+            new PaginationQuery { Page = 1, PageSize = 25 },
+            new Dictionary<string, string>
+            {
+                ["nome_funcao"] = "saude"
+            },
+            CancellationToken.None);
+
+        Assert.Equal(2, handler.CallCount);
+        Assert.Single(page.Items);
+        Assert.Equal("10", page.Items[0]["codigo_funcao"]?.GetValue<string>());
+    }
+
+    [Fact]
     public async Task GetResourcePageAsync_ReturnsEmptyPage_WhenSourcePaginationExceedsAvailableItemsAndUpstreamReturnsNotFound()
     {
         var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));

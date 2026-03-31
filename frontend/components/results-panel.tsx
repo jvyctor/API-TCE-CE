@@ -38,7 +38,6 @@ type ResultsPanelProps = {
   selectedResource: string;
   resourceCategory: string | null;
   municipality: MunicipalityInfo | null;
-  apiBaseUrl: string;
   selectedMunicipalityCode: string;
   requestPageSize: number;
   shouldFetchOnMount?: boolean;
@@ -151,31 +150,6 @@ function buildCsvContent(
 function buildExportFileName(resource: string) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   return `${resource}_${timestamp}.csv`;
-}
-
-function buildApiUrl(
-  apiBaseUrl: string,
-  resource: string,
-  page: number,
-  pageSize: number,
-  selectedMunicipalityCode: string,
-  filters: FilterPair[]
-) {
-  const url = new URL(`${apiBaseUrl.replace(/\/$/, "")}/api/resources/${resource}`);
-  url.searchParams.set("page", String(page));
-  url.searchParams.set("pageSize", String(pageSize));
-
-  if (selectedMunicipalityCode) {
-    url.searchParams.set("codigo_municipio", selectedMunicipalityCode);
-  }
-
-  filters.forEach((filter) => {
-    if (filter.key.trim()) {
-      url.searchParams.set(filter.key, filter.value);
-    }
-  });
-
-  return url.toString();
 }
 
 function buildRelativeApiUrl(
@@ -422,7 +396,6 @@ export function ResultsPanel({
   selectedResource,
   resourceCategory,
   municipality,
-  apiBaseUrl,
   selectedMunicipalityCode,
   requestPageSize,
   shouldFetchOnMount = false,
@@ -467,48 +440,29 @@ export function ResultsPanel({
       return cached;
     }
 
-    const requestUrls = [
-      buildRelativeApiUrl(
-        selectedResource,
-        page,
-        requestPageSize,
-        selectedMunicipalityCode,
-        filters
-      ),
-    ];
+    const requestUrl = buildRelativeApiUrl(
+      selectedResource,
+      page,
+      requestPageSize,
+      selectedMunicipalityCode,
+      filters
+    );
 
-    if (apiBaseUrl.trim()) {
-      requestUrls.push(
-        buildApiUrl(
-          apiBaseUrl,
-          selectedResource,
-          page,
-          requestPageSize,
-          selectedMunicipalityCode,
-          filters
-        )
-      );
-    }
-
-    for (const requestUrl of requestUrls) {
-      try {
-        const response = await fetch(requestUrl, {
-          cache: "no-store",
-          headers: ngrokBypassHeaders,
-        });
-        if (!response.ok) {
-          continue;
-        }
-
-        const payload = (await response.json()) as PaginatedEnvelope;
-        pageCacheRef.current.set(page, payload);
-        return payload;
-      } catch {
-        continue;
+    try {
+      const response = await fetch(requestUrl, {
+        cache: "no-store",
+        headers: ngrokBypassHeaders,
+      });
+      if (!response.ok) {
+        return null;
       }
-    }
 
-    return null;
+      const payload = (await response.json()) as PaginatedEnvelope;
+      pageCacheRef.current.set(page, payload);
+      return payload;
+    } catch {
+      return null;
+    }
   }
 
   useEffect(() => {

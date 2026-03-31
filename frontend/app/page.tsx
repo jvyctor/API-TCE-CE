@@ -417,7 +417,6 @@ export default async function Home({
               selectedResource={selectedResourceKey}
               resourceCategory={selectedResource?.category ?? null}
               municipality={selectedMunicipality}
-              apiBaseUrl={getPublicApiBaseUrl()}
               selectedMunicipalityCode={effectiveMunicipalityCode}
               requestPageSize={pageSize}
               shouldFetchOnMount

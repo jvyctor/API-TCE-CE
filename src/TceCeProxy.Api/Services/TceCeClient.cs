@@ -1,6 +1,7 @@
 using System.Net;
 using System.Diagnostics;
 using System.Text.Json.Nodes;
+using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using TceCeProxy.Api.Models;
@@ -58,14 +59,17 @@ public sealed class TceCeClient(
 
             try
             {
-                var request = new HttpRequestMessage(HttpMethod.Get, sourceUri);
+                using var request = new HttpRequestMessage(HttpMethod.Get, sourceUri);
 
                 if (!string.IsNullOrWhiteSpace(_options.ApiKey) && !string.IsNullOrWhiteSpace(_options.ApiKeyHeaderName))
                 {
                     request.Headers.TryAddWithoutValidation(_options.ApiKeyHeaderName, _options.ApiKey);
                 }
 
-                using var response = await httpClient.SendAsync(request, cancellationToken);
+                using var response = await httpClient.SendAsync(
+                    request,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken);
 
                 if (response.StatusCode == HttpStatusCode.NotFound)
                 {
@@ -94,11 +98,11 @@ public sealed class TceCeClient(
                     var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
                     logger.LogWarning(
-                        "Falha ao consultar o TCE-CE. Status: {StatusCode}. Resource: {Resource}. Url: {Url}. Body: {Body}",
+                        "Falha ao consultar o TCE-CE. Status: {StatusCode}. Resource: {Resource}. Url: {Url}. ResponseLength: {ResponseLength}",
                         (int)response.StatusCode,
                         resource,
                         sourceUri,
-                        body);
+                        body.Length);
 
                     throw new UpstreamRequestException(resource, sourceUri, response.StatusCode, body);
                 }
@@ -108,7 +112,7 @@ public sealed class TceCeClient(
 
                 if (rootNode is null)
                 {
-                    throw new UpstreamRequestException(resource, sourceUri, HttpStatusCode.NoContent);
+                    throw new UpstreamPayloadException(resource, sourceUri);
                 }
 
                 var normalized = TceCeResponseParser.Normalize(rootNode);
@@ -138,6 +142,11 @@ public sealed class TceCeClient(
             {
                 logger.LogWarning(exception, "Timeout ao consultar o TCE-CE. Resource: {Resource}. Url: {Url}", resource, sourceUri);
                 throw new UpstreamConnectivityException(resource, sourceUri, exception);
+            }
+            catch (JsonException exception)
+            {
+                logger.LogWarning(exception, "Payload invÃ¡lido retornado pelo TCE-CE. Resource: {Resource}. Url: {Url}", resource, sourceUri);
+                throw new UpstreamPayloadException(resource, sourceUri, exception);
             }
         });
 
@@ -198,7 +207,9 @@ public sealed class TceCeClient(
 
         var query = System.Web.HttpUtility.ParseQueryString(string.Empty);
 
-        foreach (var parameter in queryParameters)
+        foreach (var parameter in queryParameters
+                     .OrderBy(parameter => parameter.Key, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(parameter => parameter.Value, StringComparer.Ordinal))
         {
             query[parameter.Key] = parameter.Value;
         }

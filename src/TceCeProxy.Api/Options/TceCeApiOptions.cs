@@ -18,7 +18,7 @@ public sealed class TceCeApiOptions
 
     public string? ApiKeyHeaderName { get; init; }
 
-    public string SwaggerUiInitPath { get; init; } = @"..\..\swagger-ui-init.js";
+    public string SwaggerUiInitPath { get; init; } = "swagger-ui-init.js";
 
     public Dictionary<string, TceCeResourceDefinition> Resources { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 }

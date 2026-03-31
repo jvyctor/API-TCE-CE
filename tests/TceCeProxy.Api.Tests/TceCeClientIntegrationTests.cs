@@ -102,7 +102,7 @@ public sealed class TceCeClientIntegrationTests
                     QueryParameters =
                     [
                         new() { Name = "codigo_municipio", Required = true },
-                        new() { Name = "data_realizacao_licitacao", Required = true }
+                        new() { Name = "data_realizacao_autuacao_licitacao", Required = true }
                     ]
                 }
             });
@@ -113,7 +113,7 @@ public sealed class TceCeClientIntegrationTests
             new Dictionary<string, string>
             {
                 ["codigo_municipio"] = "013",
-                ["data_realizacao_licitacao"] = "2025-01-01_2025-12-31"
+                ["data_realizacao_autuacao_licitacao"] = "2025-01-01_2025-12-31"
             },
             CancellationToken.None);
 
@@ -172,7 +172,49 @@ public sealed class TceCeClientIntegrationTests
         Assert.Equal(2, page.TotalPages);
         Assert.True(page.Metadata["sourcePagination"]?.GetValue<bool>());
         Assert.False(page.Metadata["hasMorePages"]?.GetValue<bool>());
-        Assert.True(page.Metadata["totalItemsExact"]?.GetValue<bool>());
+        Assert.False(page.Metadata["totalItemsExact"]?.GetValue<bool>());
+        Assert.False(page.Metadata["totalPagesExact"]?.GetValue<bool>());
+    }
+
+    [Fact]
+    public async Task GetResourcePageAsync_ThrowsUpstreamPayloadException_WhenUpstreamReturnsInvalidJson()
+    {
+        var handler = new FakeHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("not-json", Encoding.UTF8, "application/json")
+            });
+
+        using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(
+            httpClient,
+            memoryCache,
+            new Dictionary<string, TceCeResourceDefinition>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["contrato"] = new()
+                {
+                    Path = "contrato",
+                    PaginationMode = TceCePaginationMode.Source,
+                    QueryParameters =
+                    [
+                        new() { Name = "codigo_municipio", Required = true },
+                        new() { Name = "data_contrato", Required = true },
+                        new() { Name = "quantidade", Required = true },
+                        new() { Name = "deslocamento", Required = true }
+                    ]
+                }
+            });
+
+        await Assert.ThrowsAsync<UpstreamPayloadException>(() => client.GetResourcePageAsync(
+            "contrato",
+            new PaginationQuery { Page = 1, PageSize = 25 },
+            new Dictionary<string, string>
+            {
+                ["codigo_municipio"] = "013",
+                ["data_contrato"] = "2025-01-01_2025-12-31"
+            },
+            CancellationToken.None));
     }
 
     private static TceCeClient CreateClient(

@@ -80,6 +80,7 @@ public sealed class TceCePaginationTests
         Assert.Equal(8, envelope.TotalItems);
         Assert.Equal(4, envelope.TotalPages);
         Assert.True(envelope.Metadata["totalItemsExact"]?.GetValue<bool>());
+        Assert.True(envelope.Metadata["totalPagesExact"]?.GetValue<bool>());
     }
 
     [Fact]
@@ -103,6 +104,24 @@ public sealed class TceCePaginationTests
         Assert.Equal(80, envelope.TotalItems);
         Assert.Equal(4, envelope.TotalPages);
         Assert.Equal(26, envelope.Items[0]["id"]?.GetValue<int>());
+    }
+
+    [Fact]
+    public void CreateEnvelope_DoesNotClaimExactTotals_WhenSourcePaginationDoesNotReturnKnownTotal()
+    {
+        var definition = CreateDefinition("codigo_municipio", "quantidade", "deslocamento");
+        var envelope = TceCePagination.CreateEnvelope(
+            "agentes_publicos",
+            "https://example.test/agentes_publicos?quantidade=250&deslocamento=250",
+            new PaginationQuery { Page = 2, PageSize = 250 },
+            definition,
+            [],
+            new JsonObject(),
+            DateTimeOffset.Parse("2026-03-28T00:00:00Z"),
+            300);
+
+        Assert.False(envelope.Metadata["totalItemsExact"]?.GetValue<bool>());
+        Assert.False(envelope.Metadata["totalPagesExact"]?.GetValue<bool>());
     }
 
     private static TceCeResourceDefinition CreateDefinition(params string[] parameterNames)

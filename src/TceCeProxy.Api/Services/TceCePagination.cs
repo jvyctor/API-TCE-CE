@@ -91,7 +91,8 @@ public static class TceCePagination
         var upstreamTotal = TryReadKnownTotal(normalizedMetadata);
         normalizedMetadata["hasMorePages"] = hasMorePages;
         normalizedMetadata["sourcePagination"] = true;
-        normalizedMetadata["totalItemsExact"] = upstreamTotal.HasValue || !hasMorePages;
+        normalizedMetadata["totalItemsExact"] = upstreamTotal.HasValue;
+        normalizedMetadata["totalPagesExact"] = upstreamTotal.HasValue;
         normalizedMetadata["paginationMode"] = paginationMode.ToString();
 
         var knownItemCount = ((normalizedPage - 1) * normalizedPageSize) + items.Count;

@@ -35,7 +35,7 @@ public sealed class TceCeSwaggerResourceCatalog : ITceCeResourceCatalog
                 "Arquivo do Swagger nao encontrado em {SwaggerPath}. Usando catalogo de fallback do appsettings.",
                 swaggerPath);
 
-            return new Dictionary<string, TceCeResourceDefinition>(options.Resources, StringComparer.OrdinalIgnoreCase);
+            return TceCeResourceDefinitionNormalizer.NormalizeResources(options.Resources);
         }
 
         try
@@ -108,8 +108,10 @@ public sealed class TceCeSwaggerResourceCatalog : ITceCeResourceCatalog
                 };
             }
 
-            logger.LogInformation("Catalogo do TCE-CE carregado do Swagger com {Count} endpoints.", resources.Count);
-            return resources;
+            var normalizedResources = TceCeResourceDefinitionNormalizer.NormalizeResources(resources);
+
+            logger.LogInformation("Catalogo do TCE-CE carregado do Swagger com {Count} endpoints.", normalizedResources.Count);
+            return normalizedResources;
         }
         catch (Exception exception)
         {
@@ -118,7 +120,7 @@ public sealed class TceCeSwaggerResourceCatalog : ITceCeResourceCatalog
                 "Falha ao carregar o catalogo do Swagger em {SwaggerPath}. Usando fallback do appsettings.",
                 swaggerPath);
 
-            return new Dictionary<string, TceCeResourceDefinition>(options.Resources, StringComparer.OrdinalIgnoreCase);
+            return TceCeResourceDefinitionNormalizer.NormalizeResources(options.Resources);
         }
     }
 

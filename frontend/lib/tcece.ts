@@ -1,3 +1,4 @@
+import { request as httpsRequest } from "node:https";
 import catalogSnapshot from "./tcece-catalog.json";
 
 const officialApiBaseUrl = "https://api-dados-abertos.tce.ce.gov.br";
@@ -41,8 +42,62 @@ type CachedCatalog = {
 
 let cachedCatalog: CachedCatalog | null = null;
 
-function getTimeoutSignal(timeoutMs: number) {
-  return AbortSignal.timeout(timeoutMs);
+async function requestJson(url: URL, timeoutMs: number) {
+  return new Promise<{
+    ok: boolean;
+    status: number;
+    json: unknown;
+  }>((resolve, reject) => {
+    const request = httpsRequest(
+      {
+        protocol: url.protocol,
+        hostname: url.hostname,
+        port: url.port || undefined,
+        path: `${url.pathname}${url.search}`,
+        method: "GET",
+        family: 4,
+        timeout: timeoutMs,
+        headers: {
+          accept: "application/json",
+          "user-agent": "Mozilla/5.0 API-TCE-CE/1.0",
+        },
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+
+        response.on("data", (chunk) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+
+        response.on("end", () => {
+          try {
+            const content = Buffer.concat(chunks).toString("utf8");
+            const parsed = content ? (JSON.parse(content) as unknown) : null;
+
+            resolve({
+              ok:
+                (response.statusCode ?? 500) >= 200 &&
+                (response.statusCode ?? 500) < 300,
+              status: response.statusCode ?? 500,
+              json: parsed,
+            });
+          } catch (error) {
+            reject(error);
+          }
+        });
+      }
+    );
+
+    request.on("timeout", () => {
+      request.destroy(new Error("Request timed out."));
+    });
+
+    request.on("error", (error) => {
+      reject(error);
+    });
+
+    request.end();
+  });
 }
 
 function normalizeTag(tag: string | undefined) {
@@ -422,14 +477,7 @@ export async function getResourceResponse(
   }
 
   try {
-    const response = await fetch(sourceUrl.toString(), {
-      cache: "no-store",
-      signal: getTimeoutSignal(30000),
-      headers: {
-        accept: "application/json",
-        "user-agent": "Mozilla/5.0 API-TCE-CE/1.0",
-      },
-    });
+    const response = await requestJson(sourceUrl, 30000);
 
     if (!response.ok) {
       return {
@@ -442,8 +490,7 @@ export async function getResourceResponse(
       };
     }
 
-    const root = (await response.json()) as unknown;
-    const normalized = normalizePayload(root);
+    const normalized = normalizePayload(response.json);
 
     return {
       status: 200,

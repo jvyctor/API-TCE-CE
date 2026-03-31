@@ -126,16 +126,20 @@ public sealed class TceCeSwaggerResourceCatalog : ITceCeResourceCatalog
 
     private static string ResolveSwaggerPath(string contentRootPath, string configuredPath)
     {
-        if (Path.IsPathRooted(configuredPath))
+        var normalizedConfiguredPath = configuredPath
+            .Replace('\\', Path.DirectorySeparatorChar)
+            .Replace('/', Path.DirectorySeparatorChar);
+
+        if (Path.IsPathRooted(normalizedConfiguredPath))
         {
-            return configuredPath;
+            return normalizedConfiguredPath;
         }
 
         var currentDirectory = new DirectoryInfo(contentRootPath);
 
         while (currentDirectory is not null)
         {
-            var candidatePath = Path.Combine(currentDirectory.FullName, configuredPath);
+            var candidatePath = Path.Combine(currentDirectory.FullName, normalizedConfiguredPath);
             if (File.Exists(candidatePath))
             {
                 return candidatePath;
@@ -144,7 +148,7 @@ public sealed class TceCeSwaggerResourceCatalog : ITceCeResourceCatalog
             currentDirectory = currentDirectory.Parent;
         }
 
-        return Path.GetFullPath(Path.Combine(contentRootPath, configuredPath));
+        return Path.GetFullPath(Path.Combine(contentRootPath, normalizedConfiguredPath));
     }
 
     private static string ExtractSwaggerDocument(string content)

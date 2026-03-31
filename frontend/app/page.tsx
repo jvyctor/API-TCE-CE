@@ -1,6 +1,7 @@
 import { Header } from "@/components/header";
 import { QueryForm } from "@/components/query-form";
 import { ResultsPanel } from "@/components/results-panel";
+import { ErrorCard } from "@/components/error-card";
 import { headers } from "next/headers";
 import { getPublicApiBaseUrl, getServerApiBaseUrl } from "@/lib/api-base-url";
 import municipalitiesSnapshot from "@/lib/tcece-municipalities.json";
@@ -372,6 +373,19 @@ export default async function Home({
 
   const shouldFetchResults =
     Boolean(selectedResourceKey) && missingRequiredParameters.length === 0;
+  const requestPayloadFilters = [
+    ...dynamicFilters,
+    ...(effectiveMunicipalityCode
+      ? [{ key: "codigo_municipio", value: effectiveMunicipalityCode }]
+      : []),
+  ];
+  const { payload, error } = shouldFetchResults
+    ? await getResourcePage(
+        selectedResourceKey,
+        requestPayloadFilters,
+        pageSize
+      )
+    : { payload: null, error: null };
 
   return (
     <div className="min-h-screen bg-background">
@@ -410,16 +424,23 @@ export default async function Home({
         </section>
 
         <section className="mt-8 min-w-0 space-y-8">
-          {shouldFetchResults && (
+          {error && (
+            <ErrorCard
+              title={error.title}
+              detail={error.detail}
+              status={error.status}
+            />
+          )}
+
+          {payload && (
             <ResultsPanel
-              payload={null}
+              payload={payload}
               filters={dynamicFilters}
               selectedResource={selectedResourceKey}
               resourceCategory={selectedResource?.category ?? null}
               municipality={selectedMunicipality}
               selectedMunicipalityCode={effectiveMunicipalityCode}
               requestPageSize={pageSize}
-              shouldFetchOnMount
             />
           )}
         </section>

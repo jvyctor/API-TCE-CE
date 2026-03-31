@@ -25,12 +25,14 @@ const basePayload = {
       cargo: "Analista",
       ativo: true,
       exercicio_orcamento: "202600",
+      data_expediente: "2025-03-03T03:00:00.000Z",
     },
     {
       nome_servidor: "Joao Souza",
       cargo: "Tecnico",
       ativo: false,
       exercicio_orcamento: "202600",
+      data_expediente: "2025-03-04 11:22:33",
     },
   ],
   metadata: {},
@@ -47,7 +49,6 @@ describe("ResultsPanel", () => {
         selectedResource="agentes_publicos"
         resourceCategory="Pessoal"
         municipality={{ codigo_municipio: "013", nome_municipio: "Aquiraz" }}
-        apiBaseUrl="http://localhost:8080"
         selectedMunicipalityCode="013"
         requestPageSize={25}
       />
@@ -58,6 +59,10 @@ describe("ResultsPanel", () => {
     expect(screen.getAllByText("Maria Silva").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Sim").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Nao").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("2025-03-03").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("2025-03-04").length).toBeGreaterThan(0);
+    expect(screen.queryByText("2025-03-03T03:00:00.000Z")).not.toBeInTheDocument();
+    expect(screen.queryByText("2025-03-04 11:22:33")).not.toBeInTheDocument();
     expect(screen.queryByText("Exercicio orcamentario")).not.toBeInTheDocument();
     expect(screen.queryAllByText("202600")).toHaveLength(0);
   });
@@ -70,7 +75,6 @@ describe("ResultsPanel", () => {
         selectedResource="contrato"
         resourceCategory="Aquisicoes e contratos"
         municipality={{ codigo_municipio: "013", nome_municipio: "Aquiraz" }}
-        apiBaseUrl="http://localhost:8080"
         selectedMunicipalityCode="013"
         requestPageSize={25}
       />
@@ -94,7 +98,6 @@ describe("ResultsPanel", () => {
         selectedResource="contrato"
         resourceCategory="Aquisicoes e contratos"
         municipality={{ codigo_municipio: "013", nome_municipio: "Aquiraz" }}
-        apiBaseUrl="http://localhost:8080"
         selectedMunicipalityCode="013"
         requestPageSize={100}
       />
@@ -113,7 +116,6 @@ describe("ResultsPanel", () => {
         selectedResource="agentes_publicos"
         resourceCategory="Pessoal"
         municipality={{ codigo_municipio: "013", nome_municipio: "Aquiraz" }}
-        apiBaseUrl="http://localhost:8080"
         selectedMunicipalityCode="013"
         requestPageSize={100}
       />

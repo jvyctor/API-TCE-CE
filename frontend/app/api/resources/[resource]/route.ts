@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerApiBaseUrl } from "@/lib/api-base-url";
+import { getResourceResponse } from "@/lib/tcece";
 
 type RouteContext = {
   params: Promise<{
@@ -9,27 +9,14 @@ type RouteContext = {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   const { resource } = await context.params;
-  const targetUrl = new URL(
-    `${getServerApiBaseUrl()}/api/resources/${encodeURIComponent(resource)}`
+  const page = Number(request.nextUrl.searchParams.get("page") ?? "1");
+  const pageSize = Number(request.nextUrl.searchParams.get("pageSize") ?? "25");
+  const result = await getResourceResponse(
+    resource,
+    page,
+    pageSize,
+    request.nextUrl.searchParams
   );
 
-  request.nextUrl.searchParams.forEach((value, key) => {
-    targetUrl.searchParams.append(key, value);
-  });
-
-  const response = await fetch(targetUrl.toString(), {
-    cache: "no-store",
-    headers: {
-      accept: request.headers.get("accept") ?? "application/json",
-    },
-  });
-
-  const body = await response.text();
-
-  return new NextResponse(body, {
-    status: response.status,
-    headers: {
-      "content-type": response.headers.get("content-type") ?? "application/json; charset=utf-8",
-    },
-  });
+  return NextResponse.json(result.body, { status: result.status });
 }

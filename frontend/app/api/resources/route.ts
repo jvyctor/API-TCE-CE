@@ -1,25 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerApiBaseUrl } from "@/lib/api-base-url";
+import { NextResponse } from "next/server";
+import { getCatalogResponse } from "@/lib/tcece";
 
-export async function GET(request: NextRequest) {
-  const targetUrl = new URL(`${getServerApiBaseUrl()}/api/resources`);
-  request.nextUrl.searchParams.forEach((value, key) => {
-    targetUrl.searchParams.append(key, value);
-  });
-
-  const response = await fetch(targetUrl.toString(), {
-    cache: "no-store",
-    headers: {
-      accept: request.headers.get("accept") ?? "application/json",
-    },
-  });
-
-  const body = await response.text();
-
-  return new NextResponse(body, {
-    status: response.status,
-    headers: {
-      "content-type": response.headers.get("content-type") ?? "application/json; charset=utf-8",
-    },
-  });
+export async function GET() {
+  try {
+    return NextResponse.json(await getCatalogResponse(), { status: 200 });
+  } catch {
+    return NextResponse.json(
+      {
+        title: "Falha no catalogo",
+        status: 502,
+        detail: "Nao foi possivel carregar o catalogo de recursos do TCE-CE.",
+      },
+      { status: 502 }
+    );
+  }
 }

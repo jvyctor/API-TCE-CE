@@ -41,6 +41,7 @@ type ResultsPanelProps = {
   apiBaseUrl: string;
   selectedMunicipalityCode: string;
   requestPageSize: number;
+  shouldFetchOnMount?: boolean;
 };
 
 const csvDelimiter = ";";
@@ -424,21 +425,26 @@ export function ResultsPanel({
   apiBaseUrl,
   selectedMunicipalityCode,
   requestPageSize,
+  shouldFetchOnMount = false,
 }: ResultsPanelProps) {
   const [currentPayload, setCurrentPayload] = useState(payload);
+  const [isLoadingInitial, setIsLoadingInitial] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [initialLoadError, setInitialLoadError] = useState<string | null>(null);
   const pageCacheRef = useRef(new Map<number, PaginatedEnvelope>());
   const gridContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setCurrentPayload(payload);
+    setIsLoadingInitial(false);
     setIsLoadingMore(false);
     setIsExporting(false);
     setLoadMoreError(null);
     setExportError(null);
+    setInitialLoadError(null);
     pageCacheRef.current = new Map();
 
     if (payload) {
@@ -454,22 +460,6 @@ export function ResultsPanel({
       })),
     [filters]
   );
-
-  if (!currentPayload) {
-    return null;
-  }
-
-  const hasMorePages = readBooleanMetadata(currentPayload.metadata, "hasMorePages");
-  const usesSourcePagination = readBooleanMetadata(
-    currentPayload.metadata,
-    "sourcePagination"
-  );
-  const totalItemsExact = readBooleanMetadata(currentPayload.metadata, "totalItemsExact");
-  const hasNextPage = hasMorePages || currentPayload.page < currentPayload.totalPages;
-  const displayBatchCount = Math.max(1, Math.ceil(currentPayload.items.length / displayBatchSize));
-  const visibleTotalLabel = totalItemsExact || !usesSourcePagination
-    ? `Total informado: ${currentPayload.totalItems.toLocaleString("pt-BR")}`
-    : `Carregados ate agora: ${currentPayload.items.length.toLocaleString("pt-BR")} de ${currentPayload.totalItems.toLocaleString("pt-BR")}`;
 
   async function fetchEnvelope(page: number) {
     const cached = pageCacheRef.current.get(page);
@@ -520,6 +510,79 @@ export function ResultsPanel({
 
     return null;
   }
+
+  useEffect(() => {
+    if (!shouldFetchOnMount || currentPayload || isLoadingInitial) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadInitialPayload() {
+      setIsLoadingInitial(true);
+      setInitialLoadError(null);
+
+      try {
+        const firstPayload = await fetchEnvelope(1);
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!firstPayload) {
+          setInitialLoadError("Nao foi possivel consultar o recurso selecionado agora.");
+          return;
+        }
+
+        setCurrentPayload(firstPayload);
+      } finally {
+        if (isMounted) {
+          setIsLoadingInitial(false);
+        }
+      }
+    }
+
+    void loadInitialPayload();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPayload, isLoadingInitial, shouldFetchOnMount]);
+
+  if (!currentPayload) {
+    if (isLoadingInitial) {
+      return (
+        <section className="surface-panel flex min-h-40 items-center justify-center rounded-2xl px-6 py-10">
+          <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
+            <CircularProgress size={18} />
+            <span>Consultando dados...</span>
+          </div>
+        </section>
+      );
+    }
+
+    if (initialLoadError) {
+      return (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {initialLoadError}
+        </div>
+      );
+    }
+
+    return null;
+  }
+
+  const hasMorePages = readBooleanMetadata(currentPayload.metadata, "hasMorePages");
+  const usesSourcePagination = readBooleanMetadata(
+    currentPayload.metadata,
+    "sourcePagination"
+  );
+  const totalItemsExact = readBooleanMetadata(currentPayload.metadata, "totalItemsExact");
+  const hasNextPage = hasMorePages || currentPayload.page < currentPayload.totalPages;
+  const displayBatchCount = Math.max(1, Math.ceil(currentPayload.items.length / displayBatchSize));
+  const visibleTotalLabel = totalItemsExact || !usesSourcePagination
+    ? `Total informado: ${currentPayload.totalItems.toLocaleString("pt-BR")}`
+    : `Carregados ate agora: ${currentPayload.items.length.toLocaleString("pt-BR")} de ${currentPayload.totalItems.toLocaleString("pt-BR")}`;
 
   async function loadMoreRecords() {
     if (isLoadingMore || !hasNextPage) {

@@ -1,8 +1,6 @@
 import { Header } from "@/components/header";
 import { QueryForm } from "@/components/query-form";
 import { ResultsPanel } from "@/components/results-panel";
-import { ErrorCard } from "@/components/error-card";
-import { Toast } from "@/components/toast";
 import { headers } from "next/headers";
 import { getPublicApiBaseUrl, getServerApiBaseUrl } from "@/lib/api-base-url";
 import municipalitiesSnapshot from "@/lib/tcece-municipalities.json";
@@ -372,50 +370,11 @@ export default async function Home({
       (m) => m.codigo_municipio === effectiveMunicipalityCode
     ) ?? null;
 
-  const { payload, error } =
-    missingRequiredParameters.length === 0
-      ? await getResourcePage(selectedResourceKey, [
-          ...dynamicFilters,
-          ...(effectiveMunicipalityCode
-            ? [{ key: "codigo_municipio", value: effectiveMunicipalityCode }]
-            : []),
-        ], pageSize)
-      : { payload: null, error: null };
-
-  const filteredPayload =
-    payload &&
-    selectedResource &&
-    !usesSourcePagination(selectedResource) &&
-    dynamicFilters.length > 0 &&
-    payload.items.length === 0
-      ? await (async () => {
-          const baseResult = await getResourcePage(selectedResourceKey, [
-            ...(effectiveMunicipalityCode
-              ? [{ key: "codigo_municipio", value: effectiveMunicipalityCode }]
-              : []),
-          ], pageSize);
-
-          if (!baseResult.payload) {
-            return payload;
-          }
-
-          return applyLocalFilterFallback(baseResult.payload, dynamicFilters);
-        })()
-      : payload;
-
-  const hasDataAlert = Boolean(
-    filteredPayload && filteredPayload.items.length > 0 && selectedMunicipality
-  );
+  const shouldFetchResults =
+    Boolean(selectedResourceKey) && missingRequiredParameters.length === 0;
 
   return (
     <div className="min-h-screen bg-background">
-      {hasDataAlert && selectedMunicipality && (
-        <Toast
-          message={`${filteredPayload?.items.length} registros retornados para ${selectedMunicipality.nome_municipio}`}
-          type="success"
-        />
-      )}
-
       <Header
         resourceCount={catalog.resources.length}
         municipalityCount={municipalities.length}
@@ -451,17 +410,9 @@ export default async function Home({
         </section>
 
         <section className="mt-8 min-w-0 space-y-8">
-          {error && (
-            <ErrorCard
-              title={error.title}
-              detail={error.detail}
-              status={error.status}
-            />
-          )}
-
-          {filteredPayload && (
+          {shouldFetchResults && (
             <ResultsPanel
-              payload={filteredPayload}
+              payload={null}
               filters={dynamicFilters}
               selectedResource={selectedResourceKey}
               resourceCategory={selectedResource?.category ?? null}
@@ -469,6 +420,7 @@ export default async function Home({
               apiBaseUrl={getPublicApiBaseUrl()}
               selectedMunicipalityCode={effectiveMunicipalityCode}
               requestPageSize={pageSize}
+              shouldFetchOnMount
             />
           )}
         </section>

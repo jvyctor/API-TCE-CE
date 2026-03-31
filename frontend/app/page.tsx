@@ -139,7 +139,24 @@ async function getMunicipalities(): Promise<MunicipalityRecord[]> {
     const payload = (await response.json()) as PaginatedEnvelope;
     return payload.items as MunicipalityRecord[];
   } catch {
-    return [];
+    try {
+      const response = await fetch(
+        "https://api-dados-abertos.tce.ce.gov.br/municipios",
+        { cache: "force-cache" }
+      );
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const payload = (await response.json()) as {
+        data?: MunicipalityRecord[];
+      };
+
+      return payload.data ?? [];
+    } catch {
+      return [];
+    }
   }
 }
 

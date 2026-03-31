@@ -1,5 +1,6 @@
+import catalogSnapshot from "./tcece-catalog.json";
+
 const officialApiBaseUrl = "https://api-dados-abertos.tce.ce.gov.br";
-const swaggerUiInitUrl = `${officialApiBaseUrl}/docs/swagger-ui-init.js`;
 const defaultCacheSeconds = 300;
 
 type QueryParameterDescriptor = {
@@ -356,34 +357,7 @@ export async function getCatalog() {
   if (cachedCatalog && cachedCatalog.expiresAt > now) {
     return cachedCatalog.resources;
   }
-
-  const response = await fetch(swaggerUiInitUrl, {
-    cache: "no-store",
-    signal: getTimeoutSignal(20000),
-    headers: {
-      accept: "application/javascript, text/javascript, */*;q=0.1",
-      "user-agent": "Mozilla/5.0 API-TCE-CE/1.0",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Nao foi possivel carregar o catalogo do TCE-CE.");
-  }
-
-  const content = await response.text();
-  const swaggerJson = JSON.parse(extractSwaggerDocument(content)) as {
-    paths?: Record<string, Record<string, unknown>>;
-  };
-
-  const resources = Object.entries(swaggerJson.paths ?? {})
-    .filter(([, pathValue]) => pathValue && typeof pathValue.get === "object")
-    .map(([pathName, pathValue]) =>
-      normalizeResource(pathName.replace(/^\/+/, ""), pathValue.get as Record<string, unknown>)
-    )
-    .sort((left, right) => {
-      const byCategory = (left.category ?? "").localeCompare(right.category ?? "");
-      return byCategory !== 0 ? byCategory : left.key.localeCompare(right.key);
-    });
+  const resources = catalogSnapshot as ResourceDescriptor[];
 
   cachedCatalog = {
     resources,

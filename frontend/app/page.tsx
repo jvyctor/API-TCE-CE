@@ -3,6 +3,7 @@ import { QueryForm } from "@/components/query-form";
 import { ResultsPanel } from "@/components/results-panel";
 import { ErrorCard } from "@/components/error-card";
 import { Toast } from "@/components/toast";
+import { headers } from "next/headers";
 import { getPublicApiBaseUrl, getServerApiBaseUrl } from "@/lib/api-base-url";
 
 export const dynamic = "force-dynamic";
@@ -81,9 +82,26 @@ const reservedParams = new Set([
 ]);
 
 async function getCatalog(): Promise<ResourceCatalog> {
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
+
+  if (host) {
+    try {
+      const response = await fetch(`${protocol}://${host}/api/resources`, {
+        cache: "no-store",
+      });
+      if (response.ok) {
+        return (await response.json()) as ResourceCatalog;
+      }
+    } catch {
+      // Fall through to the direct API call.
+    }
+  }
+
   try {
     const response = await fetch(`${getServerApiBaseUrl()}/api/resources`, {
-      next: { revalidate: 3600 },
+      cache: "no-store",
     });
     if (!response.ok) return defaultCatalog;
     return (await response.json()) as ResourceCatalog;
@@ -93,10 +111,29 @@ async function getCatalog(): Promise<ResourceCatalog> {
 }
 
 async function getMunicipalities(): Promise<MunicipalityRecord[]> {
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
+
+  if (host) {
+    try {
+      const response = await fetch(
+        `${protocol}://${host}/api/resources/municipios?page=1&pageSize=250`,
+        { cache: "no-store" }
+      );
+      if (response.ok) {
+        const payload = (await response.json()) as PaginatedEnvelope;
+        return payload.items as MunicipalityRecord[];
+      }
+    } catch {
+      // Fall through to the direct API call.
+    }
+  }
+
   try {
     const response = await fetch(
       `${getServerApiBaseUrl()}/api/resources/municipios?page=1&pageSize=250`,
-      { next: { revalidate: 3600 } }
+      { cache: "no-store" }
     );
     if (!response.ok) return [];
     const payload = (await response.json()) as PaginatedEnvelope;

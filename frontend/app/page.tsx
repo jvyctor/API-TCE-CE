@@ -5,6 +5,7 @@ import { ErrorCard } from "@/components/error-card";
 import { Toast } from "@/components/toast";
 import { headers } from "next/headers";
 import { getPublicApiBaseUrl, getServerApiBaseUrl } from "@/lib/api-base-url";
+import municipalitiesSnapshot from "@/lib/tcece-municipalities.json";
 
 export const dynamic = "force-dynamic";
 
@@ -111,53 +112,7 @@ async function getCatalog(): Promise<ResourceCatalog> {
 }
 
 async function getMunicipalities(): Promise<MunicipalityRecord[]> {
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
-
-  if (host) {
-    try {
-      const response = await fetch(
-        `${protocol}://${host}/api/resources/municipios?page=1&pageSize=250`,
-        { cache: "no-store" }
-      );
-      if (response.ok) {
-        const payload = (await response.json()) as PaginatedEnvelope;
-        return payload.items as MunicipalityRecord[];
-      }
-    } catch {
-      // Fall through to the direct API call.
-    }
-  }
-
-  try {
-    const response = await fetch(
-      `${getServerApiBaseUrl()}/api/resources/municipios?page=1&pageSize=250`,
-      { cache: "no-store" }
-    );
-    if (!response.ok) return [];
-    const payload = (await response.json()) as PaginatedEnvelope;
-    return payload.items as MunicipalityRecord[];
-  } catch {
-    try {
-      const response = await fetch(
-        "https://api-dados-abertos.tce.ce.gov.br/municipios",
-        { cache: "force-cache" }
-      );
-
-      if (!response.ok) {
-        return [];
-      }
-
-      const payload = (await response.json()) as {
-        data?: MunicipalityRecord[];
-      };
-
-      return payload.data ?? [];
-    } catch {
-      return [];
-    }
-  }
+  return municipalitiesSnapshot as MunicipalityRecord[];
 }
 
 async function fetchResourceEnvelope(

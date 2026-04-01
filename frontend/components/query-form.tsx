@@ -282,7 +282,7 @@ export function QueryForm({
     [selectedMetadata]
   );
   const fiscalYearOptions = useMemo(() => buildFiscalYearOptions(), []);
-  const shouldShowMunicipality = supportsMunicipality(selectedMetadata);
+  const shouldShowMunicipality = true;
   const selectedResourceMetadata = useMemo(
     () => sortedResources.find((resource) => resource.key === selectedResource),
     [selectedResource, sortedResources]

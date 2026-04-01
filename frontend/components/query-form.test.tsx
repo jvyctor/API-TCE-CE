@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryForm } from "@/components/query-form";
 
@@ -156,7 +157,7 @@ describe("QueryForm", () => {
 
     await user.click(screen.getByLabelText("Opcoes de consulta"));
 
-    const options = screen.getAllByRole("option").map((option) => option.textContent?.trim());
+    const options = within(screen.getByRole("listbox")).getAllByRole("option").map((option) => option.textContent?.trim());
 
     expect(options).toEqual(["Agentes publicos", "Contrato", "Funcoes", "Municipios"]);
   });
@@ -203,7 +204,7 @@ describe("QueryForm", () => {
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
-  it("shows funcoes fields without municipality selection", () => {
+  it("shows funcoes fields while keeping municipality available", () => {
     render(
       <QueryForm
         initialFilters={[]}
@@ -216,7 +217,7 @@ describe("QueryForm", () => {
       />
     );
 
-    expect(screen.queryByLabelText("Municipio")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Municipio")).toBeInTheDocument();
     expect(screen.getByText("Campos opcionais (2)")).toBeInTheDocument();
     expect(screen.getByLabelText("Codigo da funcao")).toBeInTheDocument();
     expect(screen.getByLabelText("Nome da funcao")).toBeInTheDocument();

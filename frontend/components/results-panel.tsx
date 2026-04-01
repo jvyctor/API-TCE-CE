@@ -50,6 +50,23 @@ const ngrokBypassHeaders = {
   "ngrok-skip-browser-warning": "1",
 };
 
+function orderVisibleColumns(resourceKey: string, columns: string[]) {
+  if (resourceKey !== "contrato") {
+    return columns;
+  }
+
+  return [...columns].sort((left, right) => {
+    const leftIsObjectField = left === "descricao_objeto_contrato";
+    const rightIsObjectField = right === "descricao_objeto_contrato";
+
+    if (leftIsObjectField === rightIsObjectField) {
+      return 0;
+    }
+
+    return leftIsObjectField ? 1 : -1;
+  });
+}
+
 function readBooleanMetadata(metadata: Record<string, unknown>, key: string) {
   return metadata[key] === true;
 }
@@ -72,20 +89,26 @@ function isIntervalDateField(key: string) {
 function formatFilterValue(key: string, value: string) {
   if (isIntervalDateField(key)) {
     const [start = "", end = ""] = value.split("_", 2);
-    if (start && end) return `${start} ate ${end}`;
-    return start || value;
+    if (start && end) return `${formatDateValue(start)} ate ${formatDateValue(end)}`;
+    return formatDateValue(start || value);
   }
 
-  return value;
+  return formatDateValue(value);
 }
 
-function normalizeDateTimeValue(value: string) {
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
-    return value.slice(0, 10);
+function formatDateValue(value: string) {
+  const trimmed = value.trim();
+
+  const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return `${day}-${month}-${year}`;
   }
 
-  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(value)) {
-    return value.slice(0, 10);
+  const dateTimeMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})[T ]\d{2}:\d{2}:\d{2}/);
+  if (dateTimeMatch) {
+    const [, year, month, day] = dateTimeMatch;
+    return `${day}-${month}-${year}`;
   }
 
   return value;
@@ -95,7 +118,7 @@ function formatCellValue(value: unknown) {
   if (value == null) return "-";
   if (typeof value === "boolean") return value ? "Sim" : "Nao";
   if (typeof value === "object") return JSON.stringify(value);
-  return normalizeDateTimeValue(String(value));
+  return formatDateValue(String(value));
 }
 
 function createItemKey(item: Record<string, unknown>) {
@@ -126,7 +149,7 @@ function toSerializableCellValue(value: unknown) {
   if (value == null) return "";
   if (typeof value === "boolean") return value ? "Sim" : "Nao";
   if (typeof value === "object") return JSON.stringify(value);
-  return normalizeDateTimeValue(String(value));
+  return formatDateValue(String(value));
 }
 
 function escapeCsvValue(value: string) {
@@ -146,7 +169,10 @@ function buildCsvContent(
   items: Array<Record<string, unknown>>,
   resourceKey: string
 ) {
-  const columns = Array.from(new Set(items.flatMap((item) => Object.keys(item))));
+  const columns = orderVisibleColumns(
+    resourceKey,
+    Array.from(new Set(items.flatMap((item) => Object.keys(item))))
+  );
   const header = columns
     .map((column) => escapeCsvValue(formatFieldLabel(column, resourceKey)))
     .join(csvDelimiter);
@@ -207,10 +233,13 @@ function ResultsTable({
   resourceKey: string;
   gridContainerRef: RefObject<HTMLDivElement | null>;
 }) {
-  const columns = Array.from(
-    new Set(
-      items.flatMap((item) =>
-        Object.keys(item).filter((column) => !hiddenTableColumns.has(column))
+  const columns = orderVisibleColumns(
+    resourceKey,
+    Array.from(
+      new Set(
+        items.flatMap((item) =>
+          Object.keys(item).filter((column) => !hiddenTableColumns.has(column))
+        )
       )
     )
   );

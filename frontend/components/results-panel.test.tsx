@@ -59,8 +59,8 @@ describe("ResultsPanel", () => {
     expect(screen.getAllByText("Maria Silva").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Sim").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Nao").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("2025-03-03").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("2025-03-04").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("03-03-2025").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("04-03-2025").length).toBeGreaterThan(0);
     expect(screen.queryByText("2025-03-03T03:00:00.000Z")).not.toBeInTheDocument();
     expect(screen.queryByText("2025-03-04 11:22:33")).not.toBeInTheDocument();
     expect(screen.queryByText("Exercicio orcamentario")).not.toBeInTheDocument();
@@ -82,6 +82,36 @@ describe("ResultsPanel", () => {
 
     expect(screen.getByRole("grid")).toBeInTheDocument();
     expect(screen.getByText("Visualizacao tabular habilitada para o endpoint `Contrato`.")).toBeInTheDocument();
+  });
+
+  it("renders objeto as the last visible contrato column", () => {
+    render(
+      <ResultsPanel
+        payload={{
+          ...basePayload,
+          resource: "contrato",
+          items: [
+            {
+              modalidade_contrato: "OR",
+              numero_contrato_original: "123",
+              data_inicio_vigencia_contrato: "2025-01-17",
+              descricao_objeto_contrato: "Selecao de melhor proposta",
+              valor_total_contrato: 2000,
+            },
+          ],
+        }}
+        filters={[]}
+        selectedResource="contrato"
+        resourceCategory="Aquisicoes e contratos"
+        municipality={{ codigo_municipio: "013", nome_municipio: "Aquiraz" }}
+        selectedMunicipalityCode="013"
+        requestPageSize={25}
+      />
+    );
+
+    const headers = screen.getAllByRole("columnheader").map((header) => header.textContent?.trim());
+    expect(headers.at(-1)).toBe("Objeto");
+    expect(screen.getAllByText("17-01-2025").length).toBeGreaterThan(0);
   });
 
   it("renders the automatic pagination hint when another page exists", () => {

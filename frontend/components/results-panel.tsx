@@ -390,10 +390,6 @@ function ResultsTable({
                 backgroundColor: "hsl(var(--secondary))",
                 color: "hsl(var(--secondary-foreground))",
                 borderBottom: "1px solid hsl(var(--border) / 0.8)",
-                ".dark &": {
-                  backgroundColor: "hsl(200 20% 14%)",
-                  color: "hsl(180 15% 92%)",
-                },
               },
               "& .MuiDataGrid-columnHeaderTitle": {
                 fontWeight: 700,
@@ -411,44 +407,52 @@ function ResultsTable({
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
                 lineHeight: 1.65,
-                ".dark &": {
-                  backgroundColor: "transparent",
-                  color: "hsl(180 15% 94%)",
-                  borderBottom: "1px solid hsl(200 18% 18%)",
-                },
               },
               "& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus-within": {
                 outline: "none",
               },
               "& .MuiDataGrid-row:nth-of-type(odd)": {
                 backgroundColor: "hsl(var(--card))",
-                ".dark &": {
-                  backgroundColor: "hsl(200 22% 11%)",
-                },
               },
               "& .MuiDataGrid-row:nth-of-type(even)": {
                 backgroundColor: "hsl(var(--muted) / 0.45)",
-                ".dark &": {
-                  backgroundColor: "hsl(200 20% 13.5%)",
-                },
               },
               "& .MuiDataGrid-row:hover": {
                 backgroundColor: "hsl(var(--secondary) / 0.72)",
-                ".dark &": {
-                  backgroundColor: "hsl(200 20% 17%)",
-                },
               },
               "& .MuiDataGrid-columnSeparator": {
                 color: "hsl(var(--border) / 0.8)",
-                ".dark &": {
-                  color: "hsl(200 18% 22%)",
-                },
               },
               "& .MuiDataGrid-virtualScroller": {
                 overflowX: "auto",
-                ".dark &": {
-                  backgroundColor: "hsl(200 22% 10%)",
-                },
+              },
+              ".dark & .MuiDataGrid-columnHeaders": {
+                backgroundColor: "hsl(200 20% 14%)",
+                color: "hsl(180 15% 92%)",
+                borderBottom: "1px solid hsl(200 18% 20%)",
+              },
+              ".dark & .MuiDataGrid-columnHeader": {
+                backgroundColor: "hsl(200 20% 14%)",
+              },
+              ".dark & .MuiDataGrid-cell": {
+                backgroundColor: "transparent",
+                color: "hsl(180 15% 94%)",
+                borderBottom: "1px solid hsl(200 18% 18%)",
+              },
+              ".dark & .MuiDataGrid-row:nth-of-type(odd)": {
+                backgroundColor: "hsl(200 22% 11%)",
+              },
+              ".dark & .MuiDataGrid-row:nth-of-type(even)": {
+                backgroundColor: "hsl(200 20% 13.5%)",
+              },
+              ".dark & .MuiDataGrid-row:hover": {
+                backgroundColor: "hsl(200 20% 17%)",
+              },
+              ".dark & .MuiDataGrid-columnSeparator": {
+                color: "hsl(200 18% 22%)",
+              },
+              ".dark & .MuiDataGrid-virtualScroller": {
+                backgroundColor: "hsl(200 22% 10%)",
               },
             }}
           />

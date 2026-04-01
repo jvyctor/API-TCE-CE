@@ -333,7 +333,7 @@ function ResultsTable({
             </p>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-end">
             <button
               type="button"
               onClick={() => {
@@ -357,7 +357,7 @@ function ResultsTable({
               {isExportingTxt ? "Gerando TXT..." : "Baixar TXT"}
             </button>
             {municipality && (
-              <div className="rounded-xl border border-border/80 bg-background px-3 py-2 text-xs">
+              <div className="max-w-[230px] rounded-xl border border-border/80 bg-background px-3 py-2 text-xs">
                 <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   <MapPin className="h-3.5 w-3.5 text-primary/80" aria-hidden="true" />
                   Contexto territorial
@@ -371,7 +371,7 @@ function ResultsTable({
             )}
 
             {resourceCategory && (
-              <div className="rounded-xl border border-border/80 bg-background px-3 py-2 text-xs">
+              <div className="max-w-[230px] rounded-xl border border-border/80 bg-background px-3 py-2 text-xs">
                 <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   <Tag className="h-3.5 w-3.5 text-primary/80" aria-hidden="true" />
                   Categoria

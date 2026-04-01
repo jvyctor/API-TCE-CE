@@ -340,7 +340,7 @@ function ResultsTable({
                 void onExportCsv();
               }}
               disabled={isExportingCsv || isExportingTxt}
-              className="inline-flex min-h-[60px] items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground shadow-[0_10px_24px_hsl(var(--primary)/0.22)] transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-[0_14px_30px_hsl(var(--primary)/0.28)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
+              className="inline-flex min-h-[60px] min-w-[190px] items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-[0_10px_24px_hsl(var(--primary)/0.22)] transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-[0_14px_30px_hsl(var(--primary)/0.28)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
             >
               {isExportingCsv && <CircularProgress size={16} sx={{ color: "currentColor" }} />}
               {isExportingCsv ? "Gerando CSV..." : "Exportar CSV completo"}
@@ -351,7 +351,7 @@ function ResultsTable({
                 void onExportTxt();
               }}
               disabled={isExportingCsv || isExportingTxt}
-              className="inline-flex min-h-[60px] items-center justify-center gap-2 rounded-xl border border-border/80 bg-card px-3 py-2.5 text-xs font-semibold text-foreground shadow-[0_10px_24px_hsl(190_18%_30%_/_0.08)] transition-all hover:-translate-y-0.5 hover:bg-secondary/70 hover:shadow-[0_14px_30px_hsl(190_18%_28%_/_0.12)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
+              className="inline-flex min-h-[60px] min-w-[190px] items-center justify-center gap-2 rounded-xl border border-border/80 bg-card px-4 py-2.5 text-xs font-semibold text-foreground shadow-[0_10px_24px_hsl(190_18%_30%_/_0.08)] transition-all hover:-translate-y-0.5 hover:bg-secondary/70 hover:shadow-[0_14px_30px_hsl(190_18%_28%_/_0.12)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
             >
               {isExportingTxt && <CircularProgress size={16} sx={{ color: "currentColor" }} />}
               {isExportingTxt ? "Gerando TXT..." : "Baixar TXT"}

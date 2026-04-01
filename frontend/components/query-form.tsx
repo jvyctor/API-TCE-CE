@@ -856,9 +856,6 @@ export function QueryForm({
               <label htmlFor="resource" className="block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Opcoes de consulta
               </label>
-              <p className="text-xs leading-5 text-muted-foreground">
-                Selecione o tipo de consulta que voce quer fazer. Voce pode abrir a lista ou digitar parte do nome para localizar mais rapido.
-              </p>
               <div ref={resourceComboboxRef} className="relative">
                 <input
                   id="resource"
@@ -933,6 +930,9 @@ export function QueryForm({
               </div>
             </div>
           </div>
+          <p className="text-xs leading-5 text-muted-foreground">
+            Selecione o tipo de consulta que voce quer fazer. Voce pode abrir a lista ou digitar parte do nome para localizar mais rapido.
+          </p>
 
         </div>
 

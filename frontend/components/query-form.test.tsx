@@ -81,7 +81,7 @@ describe("QueryForm", () => {
       />
     );
 
-    const endpointInput = screen.getByLabelText("Endpoint");
+    const endpointInput = screen.getByLabelText("Opcoes de consulta");
     await user.clear(endpointInput);
     await user.type(endpointInput, "Contrato");
 
@@ -130,7 +130,7 @@ describe("QueryForm", () => {
 
     expect(screen.queryByText("Campos obrigatorios (4)")).not.toBeInTheDocument();
 
-    const endpointInput = screen.getByLabelText("Endpoint");
+    const endpointInput = screen.getByLabelText("Opcoes de consulta");
     await user.clear(endpointInput);
     await user.type(endpointInput, "Contrato");
 
@@ -154,11 +154,28 @@ describe("QueryForm", () => {
       />
     );
 
-    await user.click(screen.getByLabelText("Endpoint"));
+    await user.click(screen.getByLabelText("Opcoes de consulta"));
 
     const options = screen.getAllByRole("option").map((option) => option.textContent?.trim());
 
     expect(options).toEqual(["Agentes publicos", "Contrato", "Funcoes", "Municipios"]);
+  });
+
+  it("starts with no endpoint selected and shows the selection placeholder", () => {
+    render(
+      <QueryForm
+        initialFilters={[]}
+        municipalities={municipalities}
+        page={1}
+        pageSize={25}
+        resources={resources}
+        selectedMunicipalityCode=""
+        selectedResource=""
+      />
+    );
+
+    expect(screen.getByLabelText("Opcoes de consulta")).toHaveValue("");
+    expect(screen.getByPlaceholderText("Selecionar")).toBeInTheDocument();
   });
 
   it("does not navigate immediately when only the municipality changes", async () => {

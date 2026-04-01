@@ -349,7 +349,7 @@ export default async function Home({
   ]);
   const sortedResources = sortResourcesAlphabetically(catalog.resources);
 
-  const initialResource = sortedResources[0]?.key ?? "";
+  const initialResource = "";
   const selectedResourceKey = normalizeParam(
     resolvedSearchParams.resource,
     initialResource

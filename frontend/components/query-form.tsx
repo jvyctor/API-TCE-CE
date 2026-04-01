@@ -229,7 +229,7 @@ export function QueryForm({
   const sortedResources = useMemo(() => sortResourcesAlphabetically(resources), [resources]);
   const [activeResource, setActiveResource] = useState(selectedResource);
   const [resourceSearch, setResourceSearch] = useState(
-    formatResourceLabel(selectedResource)
+    selectedResource ? formatResourceLabel(selectedResource) : ""
   );
   const [isResourceMenuOpen, setIsResourceMenuOpen] = useState(false);
   const [municipalityCode, setMunicipalityCode] = useState(selectedMunicipalityCode);
@@ -255,7 +255,7 @@ export function QueryForm({
   });
 
   const selectedMetadata = useMemo(
-    () => sortedResources.find((r) => r.key === activeResource) ?? sortedResources[0],
+    () => sortedResources.find((r) => r.key === activeResource),
     [activeResource, sortedResources]
   );
 
@@ -284,12 +284,14 @@ export function QueryForm({
   const fiscalYearOptions = useMemo(() => buildFiscalYearOptions(), []);
   const shouldShowMunicipality = supportsMunicipality(selectedMetadata);
   const selectedResourceMetadata = useMemo(
-    () => sortedResources.find((resource) => resource.key === selectedResource) ?? sortedResources[0],
+    () => sortedResources.find((resource) => resource.key === selectedResource),
     [selectedResource, sortedResources]
   );
   const filteredResources = useMemo(() => {
     const normalizedSearch = normalizeText(resourceSearch);
-    const normalizedActiveLabel = normalizeText(formatResourceLabel(activeResource));
+    const normalizedActiveLabel = activeResource
+      ? normalizeText(formatResourceLabel(activeResource))
+      : "";
 
     if (!normalizedSearch || normalizedSearch === normalizedActiveLabel) {
       return sortedResources;
@@ -306,7 +308,7 @@ export function QueryForm({
 
   useEffect(() => {
     setActiveResource(selectedResource);
-    setResourceSearch(formatResourceLabel(selectedResource));
+    setResourceSearch(selectedResource ? formatResourceLabel(selectedResource) : "");
     setMunicipalityCode(selectedMunicipalityCode);
     setLocalPage(page);
     setLocalPageSize(pageSize);
@@ -340,7 +342,7 @@ export function QueryForm({
     function handlePointerDown(event: MouseEvent) {
       if (!resourceComboboxRef.current?.contains(event.target as Node)) {
         setIsResourceMenuOpen(false);
-        setResourceSearch(formatResourceLabel(activeResource));
+        setResourceSearch(activeResource ? formatResourceLabel(activeResource) : "");
       }
     }
 
@@ -525,12 +527,12 @@ export function QueryForm({
   }
 
   function handleReset() {
-    setActiveResource(sortedResources[0]?.key ?? "");
-    setResourceSearch(formatResourceLabel(sortedResources[0]?.key ?? ""));
+    setActiveResource("");
+    setResourceSearch("");
     setMunicipalityCode("");
     setLocalPage(1);
-    setLocalPageSize(getFetchPageSize(sortedResources[0]));
-    setQuantity(String(getFetchPageSize(sortedResources[0])));
+    setLocalPageSize(fullFetchPageSize);
+    setQuantity(String(fullFetchPageSize));
     setOffset("0");
     startTransition(() => {
       router.replace(pathname);
@@ -547,6 +549,10 @@ export function QueryForm({
     const municipalityValue = String(
       formData.get("codigo_municipio") ?? municipalityCode
     ).trim();
+
+    if (!resourceValue || !targetResource) {
+      return;
+    }
 
     const hasInvalidDateRange = Object.values(dateRanges).some(
       ({ start, end }) => Boolean(start && end && end < start)
@@ -809,10 +815,10 @@ export function QueryForm({
             </div>
             <div>
               <h3 className="text-[1.45rem] font-extrabold tracking-[-0.04em] text-foreground">
-                Configure o endpoint antes de consultar
+                Configure a consulta antes de pesquisar
               </h3>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">
-                Escolha o endpoint e preencha os filtros disponiveis. O municipio so aparece quando aquele recurso realmente exige esse dado.
+                Escolha uma opcao de consulta, entenda o tipo de dado que deseja abrir e depois preencha apenas os filtros necessarios. O municipio so aparece quando aquele recurso realmente exige esse dado.
               </p>
             </div>
           </div>
@@ -848,8 +854,11 @@ export function QueryForm({
 
             <div className="space-y-2">
               <label htmlFor="resource" className="block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Endpoint
+                Opcoes de consulta
               </label>
+              <p className="text-xs leading-5 text-muted-foreground">
+                Selecione o tipo de consulta que voce quer fazer. Voce pode abrir a lista ou digitar parte do nome para localizar mais rapido.
+              </p>
               <div ref={resourceComboboxRef} className="relative">
                 <input
                   id="resource"
@@ -873,7 +882,7 @@ export function QueryForm({
                   onFocus={() => {
                     setIsResourceMenuOpen(true);
                   }}
-                  placeholder="Digite ou selecione um endpoint"
+                  placeholder="Selecionar"
                   className="block w-full appearance-none rounded-[20px] border border-border/75 bg-card/80 px-4 py-3.5 pr-10 text-sm font-medium text-foreground shadow-[0_6px_20px_hsl(190_18%_30%_/_0.05)] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <input type="hidden" name="resource" value={activeResource} readOnly />

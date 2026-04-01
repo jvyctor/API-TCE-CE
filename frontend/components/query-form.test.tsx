@@ -81,7 +81,9 @@ describe("QueryForm", () => {
       />
     );
 
-    await user.selectOptions(screen.getByLabelText("Endpoint"), "contrato");
+    const endpointInput = screen.getByLabelText("Endpoint");
+    await user.clear(endpointInput);
+    await user.type(endpointInput, "Contrato");
 
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith(
@@ -128,11 +130,33 @@ describe("QueryForm", () => {
 
     expect(screen.queryByText("Campos obrigatorios (4)")).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Endpoint"), "contrato");
+    const endpointInput = screen.getByLabelText("Endpoint");
+    await user.clear(endpointInput);
+    await user.type(endpointInput, "Contrato");
 
     expect(screen.getByText("Campos obrigatorios (4)")).toBeInTheDocument();
     expect(screen.getByText("Data")).toBeInTheDocument();
     expect(screen.getByLabelText("Municipio")).toHaveValue("013");
+  });
+
+  it("renders endpoints in alphabetical order in the autocomplete list", () => {
+    render(
+      <QueryForm
+        initialFilters={[]}
+        municipalities={municipalities}
+        page={1}
+        pageSize={25}
+        resources={resources}
+        selectedMunicipalityCode="013"
+        selectedResource="municipios"
+      />
+    );
+
+    const options = Array.from(document.querySelectorAll("#resource-options option")).map(
+      (option) => option.getAttribute("value")
+    );
+
+    expect(options).toEqual(["Agentes publicos", "Contrato", "Funcoes", "Municipios"]);
   });
 
   it("does not navigate immediately when only the municipality changes", async () => {

@@ -4,6 +4,7 @@ import { ResultsPanel } from "@/components/results-panel";
 import { ErrorCard } from "@/components/error-card";
 import { headers } from "next/headers";
 import { getPublicApiBaseUrl, getServerApiBaseUrl } from "@/lib/api-base-url";
+import { formatResourceLabel } from "@/lib/labels";
 import municipalitiesSnapshot from "@/lib/tcece-municipalities.json";
 
 export const dynamic = "force-dynamic";
@@ -225,6 +226,12 @@ function normalizeSearchValue(value: string) {
     .toLowerCase();
 }
 
+function sortResourcesAlphabetically(resources: ResourceDescriptor[]) {
+  return [...resources].sort((left, right) =>
+    formatResourceLabel(left.key).localeCompare(formatResourceLabel(right.key), "pt-BR")
+  );
+}
+
 function applyLocalFilterFallback(
   payload: PaginatedEnvelope,
   filters: FilterPair[]
@@ -340,8 +347,9 @@ export default async function Home({
     getCatalog(),
     getMunicipalities(),
   ]);
+  const sortedResources = sortResourcesAlphabetically(catalog.resources);
 
-  const initialResource = catalog.resources[0]?.key ?? "";
+  const initialResource = sortedResources[0]?.key ?? "";
   const selectedResourceKey = normalizeParam(
     resolvedSearchParams.resource,
     initialResource
@@ -353,7 +361,7 @@ export default async function Home({
   const requestFilters = extractDynamicFilters(resolvedSearchParams);
 
   const selectedResource =
-    catalog.resources.find((r) => r.key === selectedResourceKey) ?? null;
+    sortedResources.find((r) => r.key === selectedResourceKey) ?? null;
   const page = 1;
   const pageSize = getFetchBatchSize(selectedResource);
   const dynamicFilters = filterResourceFilters(requestFilters, selectedResource);
@@ -415,7 +423,7 @@ export default async function Home({
                 municipalities={municipalities}
                 page={page}
                 pageSize={pageSize}
-                resources={catalog.resources}
+                resources={sortedResources}
                 selectedMunicipalityCode={effectiveMunicipalityCode}
                 selectedResource={selectedResourceKey}
               />

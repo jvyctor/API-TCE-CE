@@ -178,6 +178,20 @@ function supportsMunicipality(resource: ResourceOption | undefined) {
   );
 }
 
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+    .toLowerCase();
+}
+
+function sortResourcesAlphabetically(resources: ResourceOption[]) {
+  return [...resources].sort((left, right) =>
+    formatResourceLabel(left.key).localeCompare(formatResourceLabel(right.key), "pt-BR")
+  );
+}
+
 function sortVisibleParameters(
   resourceKey: string | undefined,
   parameters: QueryParameterOption[]
@@ -211,7 +225,11 @@ export function QueryForm({
   const pathname = usePathname();
   const formRef = useRef<HTMLFormElement>(null);
   const shouldHighlightValidationRef = useRef(true);
+  const sortedResources = useMemo(() => sortResourcesAlphabetically(resources), [resources]);
   const [activeResource, setActiveResource] = useState(selectedResource);
+  const [resourceSearch, setResourceSearch] = useState(
+    formatResourceLabel(selectedResource)
+  );
   const [municipalityCode, setMunicipalityCode] = useState(selectedMunicipalityCode);
   const [localPage, setLocalPage] = useState(1);
   const [localPageSize, setLocalPageSize] = useState(pageSize);
@@ -235,8 +253,8 @@ export function QueryForm({
   });
 
   const selectedMetadata = useMemo(
-    () => resources.find((r) => r.key === activeResource) ?? resources[0],
-    [activeResource, resources]
+    () => sortedResources.find((r) => r.key === activeResource) ?? sortedResources[0],
+    [activeResource, sortedResources]
   );
 
   const filterMap = useMemo(() => {
@@ -264,12 +282,13 @@ export function QueryForm({
   const fiscalYearOptions = useMemo(() => buildFiscalYearOptions(), []);
   const shouldShowMunicipality = supportsMunicipality(selectedMetadata);
   const selectedResourceMetadata = useMemo(
-    () => resources.find((resource) => resource.key === selectedResource) ?? resources[0],
-    [resources, selectedResource]
+    () => sortedResources.find((resource) => resource.key === selectedResource) ?? sortedResources[0],
+    [selectedResource, sortedResources]
   );
 
   useEffect(() => {
     setActiveResource(selectedResource);
+    setResourceSearch(formatResourceLabel(selectedResource));
     setMunicipalityCode(selectedMunicipalityCode);
     setLocalPage(page);
     setLocalPageSize(pageSize);
@@ -298,6 +317,63 @@ export function QueryForm({
       return entries;
     });
   }, [initialFilters, page, pageSize, selectedMunicipalityCode, selectedResource, selectedResourceMetadata]);
+
+  function resolveResource(inputValue: string) {
+    const normalizedInput = normalizeText(inputValue);
+    if (!normalizedInput) {
+      return null;
+    }
+
+    return sortedResources.find((resource) => {
+      const resourceLabel = formatResourceLabel(resource.key);
+
+      return (
+        normalizeText(resourceLabel) === normalizedInput ||
+        normalizeText(resource.key) === normalizedInput
+      );
+    }) ?? null;
+  }
+
+  function applyResourceSelection(nextResource: string) {
+    const nextMetadata = sortedResources.find((resource) => resource.key === nextResource);
+    const nextPageSize = getFetchPageSize(nextMetadata);
+
+    setActiveResource(nextResource);
+    setResourceSearch(formatResourceLabel(nextResource));
+    setMunicipalityCode((current) =>
+      supportsMunicipality(nextMetadata) ? current : ""
+    );
+    setLocalPage(1);
+    setLocalPageSize(nextPageSize);
+    setQuantity(String(nextPageSize));
+    setOffset("0");
+    setInvalidFields([]);
+    setDateRangeErrors({});
+    setDateRanges({});
+    setShowOptional(
+      Boolean(
+        nextMetadata &&
+        nextMetadata.queryParameters.every((parameter) => !parameter.required) &&
+        nextMetadata.queryParameters.some((parameter) => !reserved.has(parameter.name))
+      )
+    );
+
+    const formData = new FormData(formRef.current ?? undefined);
+    formData.set("resource", nextResource);
+    if (!supportsMunicipality(nextMetadata)) {
+      formData.delete("codigo_municipio");
+    }
+
+    navigateWithParams(
+      buildQueryParams(
+        formData,
+        nextResource,
+        nextMetadata,
+        supportsMunicipality(nextMetadata) ? municipalityCode : ""
+      ),
+      { shouldRefresh: true, hardReload: true }
+    );
+  }
 
   function clearInvalidField(fieldName: string) {
     setInvalidFields((current) => current.filter((entry) => entry !== fieldName));
@@ -416,11 +492,12 @@ export function QueryForm({
   }
 
   function handleReset() {
-    setActiveResource(resources[0]?.key ?? "");
+    setActiveResource(sortedResources[0]?.key ?? "");
+    setResourceSearch(formatResourceLabel(sortedResources[0]?.key ?? ""));
     setMunicipalityCode("");
     setLocalPage(1);
-    setLocalPageSize(getFetchPageSize(resources[0]));
-    setQuantity(String(getFetchPageSize(resources[0])));
+    setLocalPageSize(getFetchPageSize(sortedResources[0]));
+    setQuantity(String(getFetchPageSize(sortedResources[0])));
     setOffset("0");
     startTransition(() => {
       router.replace(pathname);
@@ -431,8 +508,9 @@ export function QueryForm({
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
-    const resourceValue = String(formData.get("resource") ?? activeResource).trim();
-    const targetResource = resources.find((resource) => resource.key === resourceValue) ?? selectedMetadata;
+    const resolvedResource = resolveResource(resourceSearch);
+    const resourceValue = resolvedResource?.key ?? String(formData.get("resource") ?? activeResource).trim();
+    const targetResource = sortedResources.find((resource) => resource.key === resourceValue) ?? selectedMetadata;
     const municipalityValue = String(
       formData.get("codigo_municipio") ?? municipalityCode
     ).trim();
@@ -740,53 +818,33 @@ export function QueryForm({
                 Endpoint
               </label>
               <div className="relative">
-                <select
+                <input
                   id="resource"
-                  name="resource"
-                  value={activeResource}
+                  type="text"
+                  list="resource-options"
+                  autoComplete="off"
+                  value={resourceSearch}
                   onChange={(e) => {
-                    const nextResource = e.target.value;
-                    const nextMetadata = resources.find((resource) => resource.key === nextResource);
-                    const nextPageSize = getFetchPageSize(nextMetadata);
-                    setActiveResource(nextResource);
-                    setMunicipalityCode((current) =>
-                      supportsMunicipality(nextMetadata) ? current : ""
-                    );
-                    setLocalPage(1);
-                    setLocalPageSize(nextPageSize);
-                    setQuantity(String(nextPageSize));
-                    setOffset("0");
-                    setInvalidFields([]);
-                    setDateRangeErrors({});
-                    setDateRanges({});
-                    setShowOptional(
-                      Boolean(
-                        nextMetadata &&
-                        nextMetadata.queryParameters.every((parameter) => !parameter.required) &&
-                        nextMetadata.queryParameters.some((parameter) => !reserved.has(parameter.name))
-                      )
-                    );
-                    const formData = new FormData(formRef.current ?? undefined);
-                    formData.set("resource", nextResource);
-                    if (!supportsMunicipality(nextMetadata)) {
-                      formData.delete("codigo_municipio");
+                    const nextValue = e.target.value;
+                    setResourceSearch(nextValue);
+
+                    const resolvedResource = resolveResource(nextValue);
+                    if (resolvedResource && resolvedResource.key !== activeResource) {
+                      applyResourceSelection(resolvedResource.key);
                     }
-                    navigateWithParams(
-                      buildQueryParams(
-                        formData,
-                        nextResource,
-                        nextMetadata,
-                        supportsMunicipality(nextMetadata) ? municipalityCode : ""
-                      ),
-                      { shouldRefresh: true, hardReload: true }
-                    );
                   }}
+                  onBlur={() => {
+                    setResourceSearch(formatResourceLabel(activeResource));
+                  }}
+                  placeholder="Digite ou selecione um endpoint"
                   className="block w-full appearance-none rounded-[20px] border border-border/75 bg-card/80 px-4 py-3.5 pr-10 text-sm font-medium text-foreground shadow-[0_6px_20px_hsl(190_18%_30%_/_0.05)] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  {resources.map((r) => (
-                    <option key={r.key} value={r.key}>{formatResourceLabel(r.key)}</option>
+                />
+                <input type="hidden" name="resource" value={activeResource} readOnly />
+                <datalist id="resource-options">
+                  {sortedResources.map((r) => (
+                    <option key={r.key} value={formatResourceLabel(r.key)} />
                   ))}
-                </select>
+                </datalist>
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               </div>
             </div>

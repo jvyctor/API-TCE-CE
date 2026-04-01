@@ -32,13 +32,15 @@ const resources = [
   {
     key: "contrato",
     requiredQueryParameters: ["codigo_municipio", "data_contrato", "quantidade", "deslocamento"],
-    optionalQueryParameters: ["numero_contrato"],
+    optionalQueryParameters: ["numero_contrato", "descricao_objeto_contrato", "tipo_contrato"],
     queryParameters: [
       { name: "codigo_municipio", required: true, type: "string" },
       { name: "data_contrato", required: true, type: "string" },
       { name: "quantidade", required: true, type: "number" },
       { name: "deslocamento", required: true, type: "number" },
       { name: "numero_contrato", required: false, type: "string" },
+      { name: "descricao_objeto_contrato", required: false, type: "string" },
+      { name: "tipo_contrato", required: false, type: "string" },
     ],
   },
   {
@@ -250,5 +252,34 @@ describe("QueryForm", () => {
     expect(pushMock).not.toHaveBeenCalled();
     expect(screen.getByText("Preencha este campo obrigatorio para consultar.")).toBeInTheDocument();
     expect(screen.getByText("Campos obrigatorios (4)").closest("fieldset")).toHaveClass("border-destructive");
+  });
+
+  it("renders objeto as the last optional field for contrato", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <QueryForm
+        initialFilters={[]}
+        municipalities={municipalities}
+        page={1}
+        pageSize={25}
+        resources={resources}
+        selectedMunicipalityCode="013"
+        selectedResource="contrato"
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Campos opcionais (3)" }));
+
+    const numeroField = screen.getByLabelText("Numero");
+    const tipoField = screen.getByLabelText("Tipo");
+    const objetoField = screen.getByLabelText("Objeto");
+
+    expect(
+      numeroField.compareDocumentPosition(tipoField) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      tipoField.compareDocumentPosition(objetoField) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 });

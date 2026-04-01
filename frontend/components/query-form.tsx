@@ -178,6 +178,26 @@ function supportsMunicipality(resource: ResourceOption | undefined) {
   );
 }
 
+function sortVisibleParameters(
+  resourceKey: string | undefined,
+  parameters: QueryParameterOption[]
+) {
+  if (resourceKey !== "contrato") {
+    return parameters;
+  }
+
+  return [...parameters].sort((left, right) => {
+    const leftIsObjectField = left.name === "descricao_objeto_contrato";
+    const rightIsObjectField = right.name === "descricao_objeto_contrato";
+
+    if (leftIsObjectField === rightIsObjectField) {
+      return 0;
+    }
+
+    return leftIsObjectField ? 1 : -1;
+  });
+}
+
 export function QueryForm({
   initialFilters,
   municipalities,
@@ -225,10 +245,22 @@ export function QueryForm({
     return entries;
   }, [initialFilters]);
 
-  const requiredParameters = selectedMetadata?.queryParameters.filter((p) => p.required) ?? [];
-  const optionalParameters = selectedMetadata?.queryParameters.filter(
-    (p) => !p.required && !reserved.has(p.name)
-  ) ?? [];
+  const requiredParameters = useMemo(
+    () => sortVisibleParameters(
+      selectedMetadata?.key,
+      selectedMetadata?.queryParameters.filter((p) => p.required) ?? []
+    ),
+    [selectedMetadata]
+  );
+  const optionalParameters = useMemo(
+    () => sortVisibleParameters(
+      selectedMetadata?.key,
+      selectedMetadata?.queryParameters.filter(
+        (p) => !p.required && !reserved.has(p.name)
+      ) ?? []
+    ),
+    [selectedMetadata]
+  );
   const fiscalYearOptions = useMemo(() => buildFiscalYearOptions(), []);
   const shouldShowMunicipality = supportsMunicipality(selectedMetadata);
   const selectedResourceMetadata = useMemo(

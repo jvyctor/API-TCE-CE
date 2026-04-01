@@ -45,6 +45,15 @@ type CachedCatalog = {
 let cachedCatalog: CachedCatalog | null = null;
 
 async function requestJson(url: URL, timeoutMs: number) {
+  const headers: Record<string, string> = {
+    accept: "application/json",
+    "user-agent": "Mozilla/5.0 API-TCE-CE/1.0",
+  };
+
+  if (url.hostname.endsWith(".ngrok-free.dev")) {
+    headers["ngrok-skip-browser-warning"] = "1";
+  }
+
   return new Promise<{
     ok: boolean;
     status: number;
@@ -60,10 +69,7 @@ async function requestJson(url: URL, timeoutMs: number) {
         method: "GET",
         family: 4,
         timeout: timeoutMs,
-        headers: {
-          accept: "application/json",
-          "user-agent": "Mozilla/5.0 API-TCE-CE/1.0",
-        },
+        headers,
       },
       (response) => {
         const chunks: Buffer[] = [];

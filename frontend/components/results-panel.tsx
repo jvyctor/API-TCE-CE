@@ -190,6 +190,64 @@ function buildExportFileName(resource: string) {
   return `${resource}_${timestamp}.csv`;
 }
 
+function buildTextExportFileName(resource: string) {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `${resource}_${timestamp}.txt`;
+}
+
+function buildTxtContent({
+  items,
+  resourceKey,
+  resourceCategory,
+  municipality,
+  filters,
+}: {
+  items: Array<Record<string, unknown>>;
+  resourceKey: string;
+  resourceCategory: string | null;
+  municipality: MunicipalityInfo | null;
+  filters: Array<{ key: string; value: string }>;
+}) {
+  const columns = orderVisibleColumns(
+    resourceKey,
+    Array.from(
+      new Set(
+        items.flatMap((item) =>
+          Object.keys(item).filter((column) => !hiddenTableColumns.has(column))
+        )
+      )
+    )
+  );
+
+  const lines: string[] = [
+    `Endpoint: ${formatResourceLabel(resourceKey)}`,
+    `Categoria: ${resourceCategory ?? "-"}`,
+    `Municipio: ${municipality ? `${municipality.nome_municipio} (TCE-CE ${municipality.codigo_municipio})` : "-"}`,
+    `Total de registros: ${items.length.toLocaleString("pt-BR")}`,
+    `Gerado em: ${new Date().toLocaleString("pt-BR")}`,
+  ];
+
+  if (filters.length > 0) {
+    lines.push("", "Filtros aplicados:");
+    filters.forEach((filter) => {
+      lines.push(`- ${formatFieldLabel(filter.key, resourceKey)}: ${filter.value}`);
+    });
+  }
+
+  lines.push("", "Registros:");
+
+  items.forEach((item, index) => {
+    lines.push("", `Registro ${index + 1}`);
+    lines.push("-".repeat(48));
+
+    columns.forEach((column) => {
+      lines.push(`${formatFieldLabel(column, resourceKey)}: ${formatCellValue(item[column])}`);
+    });
+  });
+
+  return lines.join("\r\n");
+}
+
 function buildRelativeApiUrl(
   resource: string,
   page: number,
@@ -219,8 +277,10 @@ function ResultsTable({
   resourceLabel,
   resourceCategory,
   municipality,
-  isExporting,
-  onExport,
+  isExportingCsv,
+  isExportingTxt,
+  onExportCsv,
+  onExportTxt,
   resourceKey,
   gridContainerRef,
 }: {
@@ -228,8 +288,10 @@ function ResultsTable({
   resourceLabel: string;
   resourceCategory: string | null;
   municipality: MunicipalityInfo | null;
-  isExporting: boolean;
-  onExport: () => Promise<void>;
+  isExportingCsv: boolean;
+  isExportingTxt: boolean;
+  onExportCsv: () => Promise<void>;
+  onExportTxt: () => Promise<void>;
   resourceKey: string;
   gridContainerRef: RefObject<HTMLDivElement | null>;
 }) {
@@ -275,13 +337,24 @@ function ResultsTable({
             <button
               type="button"
               onClick={() => {
-                void onExport();
+                void onExportCsv();
               }}
-              disabled={isExporting}
+              disabled={isExportingCsv || isExportingTxt}
               className="inline-flex min-h-[60px] items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground shadow-[0_10px_24px_hsl(var(--primary)/0.22)] transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-[0_14px_30px_hsl(var(--primary)/0.28)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
             >
-              {isExporting && <CircularProgress size={16} sx={{ color: "currentColor" }} />}
-              {isExporting ? "Gerando CSV..." : "Exportar CSV completo"}
+              {isExportingCsv && <CircularProgress size={16} sx={{ color: "currentColor" }} />}
+              {isExportingCsv ? "Gerando CSV..." : "Exportar CSV completo"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void onExportTxt();
+              }}
+              disabled={isExportingCsv || isExportingTxt}
+              className="inline-flex min-h-[60px] items-center justify-center gap-2 rounded-xl border border-border/80 bg-card px-3 py-2.5 text-xs font-semibold text-foreground shadow-[0_10px_24px_hsl(190_18%_30%_/_0.08)] transition-all hover:-translate-y-0.5 hover:bg-secondary/70 hover:shadow-[0_14px_30px_hsl(190_18%_28%_/_0.12)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
+            >
+              {isExportingTxt && <CircularProgress size={16} sx={{ color: "currentColor" }} />}
+              {isExportingTxt ? "Gerando TXT..." : "Baixar TXT"}
             </button>
             {municipality && (
               <div className="rounded-xl border border-border/80 bg-background px-3 py-2 text-xs">
@@ -475,7 +548,8 @@ export function ResultsPanel({
   const [currentPayload, setCurrentPayload] = useState(payload);
   const [isLoadingInitial, setIsLoadingInitial] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [isExportingTxt, setIsExportingTxt] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [initialLoadError, setInitialLoadError] = useState<string | null>(null);
@@ -486,7 +560,8 @@ export function ResultsPanel({
     setCurrentPayload(payload);
     setIsLoadingInitial(false);
     setIsLoadingMore(false);
-    setIsExporting(false);
+    setIsExportingCsv(false);
+    setIsExportingTxt(false);
     setLoadMoreError(null);
     setExportError(null);
     setInitialLoadError(null);
@@ -717,11 +792,11 @@ export function ResultsPanel({
   }, [hasNextPage, isLoadingMore, currentPayload.items.length]);
 
   async function exportAllRecords() {
-    if (isExporting) {
+    if (isExportingCsv || isExportingTxt) {
       return;
     }
 
-    setIsExporting(true);
+    setIsExportingCsv(true);
     setExportError(null);
 
     try {
@@ -746,7 +821,47 @@ export function ResultsPanel({
     } catch {
       setExportError("Nao foi possivel exportar os registros agora.");
     } finally {
-      setIsExporting(false);
+      setIsExportingCsv(false);
+    }
+  }
+
+  async function exportAllRecordsAsTxt() {
+    if (isExportingCsv || isExportingTxt) {
+      return;
+    }
+
+    setIsExportingTxt(true);
+    setExportError(null);
+
+    try {
+      const allItems = await fetchAllUniqueItems();
+      if (!allItems) {
+        setExportError("Nao foi possivel exportar os registros agora.");
+        return;
+      }
+
+      const txtContent = buildTxtContent({
+        items: allItems,
+        resourceKey: selectedResource,
+        resourceCategory,
+        municipality,
+        filters: querySummary,
+      });
+      const blob = new Blob([txtContent], {
+        type: "text/plain;charset=utf-8;",
+      });
+      const downloadUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = downloadUrl;
+      anchor.download = buildTextExportFileName(selectedResource);
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(downloadUrl);
+    } catch {
+      setExportError("Nao foi possivel exportar os registros agora.");
+    } finally {
+      setIsExportingTxt(false);
     }
   }
 
@@ -804,8 +919,10 @@ export function ResultsPanel({
         resourceLabel={formatResourceLabel(selectedResource)}
         resourceCategory={resourceCategory}
         municipality={municipality}
-        isExporting={isExporting}
-        onExport={exportAllRecords}
+        isExportingCsv={isExportingCsv}
+        isExportingTxt={isExportingTxt}
+        onExportCsv={exportAllRecords}
+        onExportTxt={exportAllRecordsAsTxt}
         resourceKey={selectedResource}
         gridContainerRef={gridContainerRef}
       />

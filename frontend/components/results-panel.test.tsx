@@ -138,7 +138,7 @@ describe("ResultsPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the full CSV export button", () => {
+  it("renders the export buttons", () => {
     render(
       <ResultsPanel
         payload={basePayload}
@@ -152,5 +152,6 @@ describe("ResultsPanel", () => {
     );
 
     expect(screen.getByRole("button", { name: "Exportar CSV completo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Baixar TXT" })).toBeInTheDocument();
   });
 });

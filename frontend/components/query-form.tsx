@@ -838,9 +838,12 @@ export function QueryForm({
                       setMunicipalityCode(e.target.value);
                       clearInvalidField("codigo_municipio");
                     }}
-                    className="block w-full appearance-none rounded-[20px] border border-border/75 bg-card/80 px-4 py-3.5 pr-10 text-sm font-medium text-foreground shadow-[0_6px_20px_hsl(190_18%_30%_/_0.05)] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className={cn(
+                      "block w-full appearance-none rounded-[20px] border border-border/75 bg-card/80 px-4 py-3.5 pr-10 text-sm font-medium shadow-[0_6px_20px_hsl(190_18%_30%_/_0.05)] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
+                      municipalityCode ? "text-foreground" : "text-muted-foreground"
+                    )}
                   >
-                    <option value="" className="text-muted-foreground">Selecione um municipio</option>
+                    <option value="">Selecione um municipio</option>
                     {municipalities.map((m) => (
                       <option key={m.codigo_municipio} value={m.codigo_municipio}>
                         {m.nome_municipio} ({m.codigo_municipio})

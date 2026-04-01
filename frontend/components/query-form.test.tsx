@@ -139,7 +139,9 @@ describe("QueryForm", () => {
     expect(screen.getByLabelText("Municipio")).toHaveValue("013");
   });
 
-  it("renders endpoints in alphabetical order in the autocomplete list", () => {
+  it("renders endpoints in alphabetical order in the autocomplete list", async () => {
+    const user = userEvent.setup();
+
     render(
       <QueryForm
         initialFilters={[]}
@@ -152,9 +154,9 @@ describe("QueryForm", () => {
       />
     );
 
-    const options = Array.from(document.querySelectorAll("#resource-options option")).map(
-      (option) => option.getAttribute("value")
-    );
+    await user.click(screen.getByLabelText("Endpoint"));
+
+    const options = screen.getAllByRole("option").map((option) => option.textContent?.trim());
 
     expect(options).toEqual(["Agentes publicos", "Contrato", "Funcoes", "Municipios"]);
   });

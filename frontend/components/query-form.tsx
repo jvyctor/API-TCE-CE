@@ -224,12 +224,14 @@ export function QueryForm({
   const router = useRouter();
   const pathname = usePathname();
   const formRef = useRef<HTMLFormElement>(null);
+  const resourceComboboxRef = useRef<HTMLDivElement>(null);
   const shouldHighlightValidationRef = useRef(true);
   const sortedResources = useMemo(() => sortResourcesAlphabetically(resources), [resources]);
   const [activeResource, setActiveResource] = useState(selectedResource);
   const [resourceSearch, setResourceSearch] = useState(
     formatResourceLabel(selectedResource)
   );
+  const [isResourceMenuOpen, setIsResourceMenuOpen] = useState(false);
   const [municipalityCode, setMunicipalityCode] = useState(selectedMunicipalityCode);
   const [localPage, setLocalPage] = useState(1);
   const [localPageSize, setLocalPageSize] = useState(pageSize);
@@ -285,6 +287,22 @@ export function QueryForm({
     () => sortedResources.find((resource) => resource.key === selectedResource) ?? sortedResources[0],
     [selectedResource, sortedResources]
   );
+  const filteredResources = useMemo(() => {
+    const normalizedSearch = normalizeText(resourceSearch);
+    const normalizedActiveLabel = normalizeText(formatResourceLabel(activeResource));
+
+    if (!normalizedSearch || normalizedSearch === normalizedActiveLabel) {
+      return sortedResources;
+    }
+
+    return sortedResources.filter((resource) => {
+      const label = formatResourceLabel(resource.key);
+      return (
+        normalizeText(label).includes(normalizedSearch) ||
+        normalizeText(resource.key).includes(normalizedSearch)
+      );
+    });
+  }, [resourceSearch, sortedResources]);
 
   useEffect(() => {
     setActiveResource(selectedResource);
@@ -318,6 +336,20 @@ export function QueryForm({
     });
   }, [initialFilters, page, pageSize, selectedMunicipalityCode, selectedResource, selectedResourceMetadata]);
 
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!resourceComboboxRef.current?.contains(event.target as Node)) {
+        setIsResourceMenuOpen(false);
+        setResourceSearch(formatResourceLabel(activeResource));
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [activeResource]);
+
   function resolveResource(inputValue: string) {
     const normalizedInput = normalizeText(inputValue);
     if (!normalizedInput) {
@@ -340,6 +372,7 @@ export function QueryForm({
 
     setActiveResource(nextResource);
     setResourceSearch(formatResourceLabel(nextResource));
+    setIsResourceMenuOpen(false);
     setMunicipalityCode((current) =>
       supportsMunicipality(nextMetadata) ? current : ""
     );
@@ -817,35 +850,77 @@ export function QueryForm({
               <label htmlFor="resource" className="block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Endpoint
               </label>
-              <div className="relative">
+              <div ref={resourceComboboxRef} className="relative">
                 <input
                   id="resource"
                   type="text"
-                  list="resource-options"
                   autoComplete="off"
                   value={resourceSearch}
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded={isResourceMenuOpen}
+                  aria-controls="resource-options"
                   onChange={(e) => {
                     const nextValue = e.target.value;
                     setResourceSearch(nextValue);
+                    setIsResourceMenuOpen(true);
 
                     const resolvedResource = resolveResource(nextValue);
                     if (resolvedResource && resolvedResource.key !== activeResource) {
                       applyResourceSelection(resolvedResource.key);
                     }
                   }}
-                  onBlur={() => {
-                    setResourceSearch(formatResourceLabel(activeResource));
+                  onFocus={() => {
+                    setIsResourceMenuOpen(true);
                   }}
                   placeholder="Digite ou selecione um endpoint"
                   className="block w-full appearance-none rounded-[20px] border border-border/75 bg-card/80 px-4 py-3.5 pr-10 text-sm font-medium text-foreground shadow-[0_6px_20px_hsl(190_18%_30%_/_0.05)] transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <input type="hidden" name="resource" value={activeResource} readOnly />
-                <datalist id="resource-options">
-                  {sortedResources.map((r) => (
-                    <option key={r.key} value={formatResourceLabel(r.key)} />
-                  ))}
-                </datalist>
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                {isResourceMenuOpen && (
+                  <div
+                    id="resource-options"
+                    role="listbox"
+                    className="absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-[22px] border border-border/80 bg-[linear-gradient(180deg,hsl(0_0%_100%/0.98),hsl(190_35%_97%/0.98))] p-2 shadow-[0_20px_40px_hsl(190_20%_18%_/_0.12)] backdrop-blur"
+                  >
+                    {filteredResources.length > 0 ? (
+                      filteredResources.map((resource) => {
+                        const isActive = resource.key === activeResource;
+
+                        return (
+                          <button
+                            key={resource.key}
+                            type="button"
+                            role="option"
+                            aria-selected={isActive}
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              applyResourceSelection(resource.key);
+                            }}
+                            className={cn(
+                              "flex w-full items-center justify-between rounded-[16px] px-3 py-2.5 text-left text-sm transition-colors",
+                              isActive
+                                ? "bg-primary/12 text-primary"
+                                : "text-foreground hover:bg-secondary/60"
+                            )}
+                          >
+                            <span className="font-medium">{formatResourceLabel(resource.key)}</span>
+                            {resource.category && (
+                              <span className="ml-3 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                {resource.category}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-[16px] px-3 py-3 text-sm text-muted-foreground">
+                        Nenhum endpoint encontrado.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

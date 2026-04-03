@@ -1,26 +1,39 @@
-# API TCE-CE
+# API-TCE-CE
 
-Aplicação full stack para consulta dos dados abertos do TCE-CE com uma API ASP.NET Core e uma interface web em Next.js.
+Aplicação full stack para consulta dos dados abertos do TCE-CE com proxy em ASP.NET Core e interface web em Next.js.
 
-## O que o projeto faz
+## Visão geral
 
-- Consome a API oficial de dados abertos do TCE-CE
-- Descobre dinamicamente os parâmetros obrigatórios a partir da documentação Swagger
-- Expõe um proxy local com paginação
-- Permite selecionar endpoint, município e filtros dinâmicos no frontend
-- Valida formatos de data antes da consulta
-- Exibe os registros retornados em JSON legível
+O projeto simplifica a consulta aos dados públicos do Tribunal de Contas do Estado do Ceará. A API descobre dinamicamente os recursos e parâmetros expostos pelo Swagger oficial, normaliza as respostas e entrega uma experiência de consumo mais amigável no frontend.
+
+## Preview
+
+![Preview da aplicação](./Grupo-SS.png)
+
+## Principais funcionalidades
+
+- Consumo da API oficial de dados abertos do TCE-CE
+- Descoberta dinâmica de endpoints e parâmetros obrigatórios
+- Proxy local com paginação e tratamento de erros
+- Interface para seleção de recurso, município e filtros dinâmicos
+- Validação de formatos de data antes da consulta
+- Exibição dos dados em JSON legível e organizado
 
 ## Arquitetura
 
-- `src/TceCeProxy.Api`: API ASP.NET Core Minimal API
-- `frontend`: aplicação Next.js
+- `src/TceCeProxy.Api`: backend em ASP.NET Core Minimal API
+- `frontend`: aplicação web em Next.js
+- `tests/TceCeProxy.Api.Tests`: testes do backend
 
-## Requisitos
+## Stack
 
-- .NET SDK 10
-- Node.js 20 ou superior
-- npm
+- ASP.NET Core
+- .NET 10
+- Next.js
+- TypeScript
+- Tailwind CSS
+- Docker
+- Render
 
 ## Como executar localmente
 
@@ -31,22 +44,14 @@ git clone https://github.com/jvyctor/API-TCE-CE.git
 cd API-TCE-CE
 ```
 
-### 2. Subir a API
+### 2. Iniciar a API
 
 ```powershell
 dotnet restore .\src\TceCeProxy.Api\TceCeProxy.Api.csproj
 dotnet run --project .\src\TceCeProxy.Api\TceCeProxy.Api.csproj -- --urls http://localhost:8080
 ```
 
-API disponível em:
-
-- `http://localhost:8080`
-- `http://localhost:8080/health`
-- `http://localhost:8080/api/resources`
-
-### 3. Subir o frontend
-
-Em outro terminal:
+### 3. Iniciar o frontend
 
 ```powershell
 cd .\frontend
@@ -54,15 +59,19 @@ npm install
 npm run dev
 ```
 
-Frontend disponível em:
+## Endpoints locais
 
-- `http://localhost:3000`
+- Frontend: `http://localhost:3000`
+- API: `http://localhost:8080`
+- Health check: `http://localhost:8080/health`
+- Catálogo de recursos: `http://localhost:8080/api/resources`
 
-## Como gerar build
+## Testes e build
 
-### API
+### Backend
 
 ```powershell
+dotnet test .\tests\TceCeProxy.Api.Tests\TceCeProxy.Api.Tests.csproj
 dotnet build .\src\TceCeProxy.Api\TceCeProxy.Api.csproj
 ```
 
@@ -70,67 +79,40 @@ dotnet build .\src\TceCeProxy.Api\TceCeProxy.Api.csproj
 
 ```powershell
 cd .\frontend
+npm run test
 npm run build
 ```
 
 ## Exemplo de consulta
 
-Exemplo usando o proxy local:
-
 ```text
 http://localhost:8080/api/resources/orgaos?page=1&pageSize=25&codigo_municipio=002&exercicio_orcamento=202400
 ```
 
-## Pontos fortes da aplicação
+## Diferenciais técnicos
 
-- Leitura dinâmica dos endpoints e parâmetros a partir da documentação oficial do TCE-CE
+- Leitura dinâmica da documentação oficial do TCE-CE
 - Cache em memória para reduzir chamadas repetidas
-- Paginação local para facilitar navegação no frontend
-- Seleção de município com preenchimento automático de `codigo_municipio`
-- Campos obrigatórios e opcionais renderizados dinamicamente
-- Validação visual e funcional para datas como `yyyy-mm-dd`, `yyyy-mm-dd_yyyy-mm-dd` e `yyyymm`
-- Resultado em JSON com leitura mais confortável e opção de expandir ou recolher registros
+- Paginação local para navegação mais fluida
+- Mapeamento amigável de filtros obrigatórios e opcionais
+- Seleção assistida de município com preenchimento de `codigo_municipio`
+- Tratamento visual de erros no frontend
 
-## Estrutura do projeto
+## Deploy
 
-```text
-.
-├── frontend
-├── src
-│   └── TceCeProxy.Api
-├── Dockerfile
-├── docker-compose.yml
-└── README.md
-```
+O repositório já está preparado para deploy com Render por meio do arquivo `render.yaml`.
 
-## Docker
-
-Se quiser rodar com Docker:
-
-```powershell
-docker compose up --build
-```
-
-## Deploy no Render
-
-O repositÃ³rio inclui um blueprint em `render.yaml` com dois serviÃ§os:
+Serviços previstos:
 
 - `tcece-proxy-api`: backend ASP.NET Core
 - `tcece-proxy-web`: frontend Next.js
 
-Fluxo recomendado no Render:
+Variáveis importantes:
 
-1. Crie um novo Blueprint apontando para este repositÃ³rio.
-2. Deixe o Render criar os dois serviÃ§os do `render.yaml`.
-3. Depois que a API publicar, copie a URL pÃºblica dela.
-4. No serviÃ§o `tcece-proxy-web`, defina `NEXT_PUBLIC_API_URL` com a URL pÃºblica da API.
-5. FaÃ§a um redeploy do frontend.
-
-VariÃ¡veis importantes:
-
-- `API_INTERNAL_URL`: preenchida automaticamente pelo Render com a rede interna entre serviÃ§os
-- `NEXT_PUBLIC_API_URL`: deve apontar para a URL pÃºblica do backend
-- `TceCeApi__ApiKey` e `TceCeApi__ApiKeyHeaderName`: opcionais, apenas se a API remota exigir autenticaÃ§Ã£o
+- `API_INTERNAL_URL`: comunicação interna entre serviços no Render
+- `NEXT_PUBLIC_API_URL`: URL pública do backend
+- `TceCeApi__ApiKey`: opcional
+- `TceCeApi__ApiKeyHeaderName`: opcional
 
 ## Referências oficiais
 

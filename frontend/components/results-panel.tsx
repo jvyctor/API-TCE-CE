@@ -806,32 +806,38 @@ function ResultsTable({
                 overflowX: "auto",
               },
               ".dark & .MuiDataGrid-columnHeaders": {
-                backgroundColor: "hsl(200 20% 14%)",
-                color: "hsl(180 15% 92%)",
-                borderBottom: "1px solid hsl(200 18% 20%)",
+                background: "linear-gradient(180deg, hsl(210 16% 15%), hsl(210 18% 13%))",
+                color: "hsl(var(--primary))",
+                borderBottom: "1px solid hsl(185 24% 24%)",
               },
               ".dark & .MuiDataGrid-columnHeader": {
-                backgroundColor: "hsl(200 20% 14%)",
+                backgroundColor: "transparent",
               },
               ".dark & .MuiDataGrid-cell": {
                 backgroundColor: "transparent",
-                color: "hsl(180 15% 94%)",
-                borderBottom: "1px solid hsl(200 18% 18%)",
+                color: "hsl(185 42% 74%)",
+                borderBottom: "1px solid hsl(185 14% 22%)",
               },
               ".dark & .MuiDataGrid-row:nth-of-type(odd)": {
-                backgroundColor: "hsl(200 22% 11%)",
+                backgroundColor: "hsl(210 18% 11%)",
               },
               ".dark & .MuiDataGrid-row:nth-of-type(even)": {
-                backgroundColor: "hsl(200 20% 13.5%)",
+                backgroundColor: "hsl(210 18% 12.5%)",
               },
               ".dark & .MuiDataGrid-row:hover": {
-                backgroundColor: "hsl(200 20% 17%)",
+                backgroundColor: "hsl(185 24% 16%)",
+              },
+              ".dark & .MuiDataGrid-row.Mui-selected": {
+                backgroundColor: "hsl(185 34% 18%)",
+              },
+              ".dark & .MuiDataGrid-row.Mui-selected:hover": {
+                backgroundColor: "hsl(185 34% 20%)",
               },
               ".dark & .MuiDataGrid-columnSeparator": {
-                color: "hsl(200 18% 22%)",
+                color: "hsl(185 16% 24%)",
               },
               ".dark & .MuiDataGrid-virtualScroller": {
-                backgroundColor: "hsl(200 22% 10%)",
+                backgroundColor: "hsl(210 18% 11%)",
               },
             }}
           />
@@ -841,13 +847,13 @@ function ResultsTable({
       {detailModalState !== "closed" && selectedRow && typeof document !== "undefined"
         ? createPortal(
         <div className={`${detailModalState === "closing" ? "modal-fade-out" : "modal-fade-in"} fixed inset-0 z-50 flex items-start justify-center bg-[hsl(210_20%_10%_/_0.28)] px-4 pb-4 pt-10 backdrop-blur-[1px]`}>
-          <div className={`${detailModalState === "closing" ? "modal-panel-out" : "modal-panel-in"} max-h-[calc(100vh-5rem)] w-full max-w-[1080px] overflow-hidden rounded-[20px] border border-border bg-[linear-gradient(180deg,hsl(0_0%_100%),hsl(210_28%_98.5%))] shadow-[0_20px_48px_hsl(210_25%_12%_/_0.18)]`}>
-            <div className="flex items-start justify-between border-b border-border/80 px-5 py-4">
+          <div className={`${detailModalState === "closing" ? "modal-panel-out" : "modal-panel-in"} max-h-[calc(100vh-5rem)] w-full max-w-[1080px] overflow-hidden rounded-[20px] border border-border bg-[linear-gradient(180deg,hsl(0_0%_100%),hsl(210_28%_98.5%))] shadow-[0_20px_48px_hsl(210_25%_12%_/_0.18)] dark:border-[hsl(210_12%_24%)] dark:bg-[linear-gradient(180deg,hsl(210_16%_15%),hsl(210_18%_12%))] dark:shadow-[0_24px_54px_hsl(210_30%_2%_/_0.42)]`}>
+            <div className="flex items-start justify-between border-b border-border/80 px-5 py-4 dark:border-[hsl(210_12%_22%)]">
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(210_10%_52%)]">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(210_10%_52%)] dark:text-[hsl(210_10%_66%)]">
                   Detalhamento do registro
                 </div>
-                <div className="mt-1 text-base font-semibold text-[hsl(210_24%_22%)]">
+                <div className="mt-1 text-base font-semibold text-[hsl(210_24%_22%)] dark:text-[hsl(var(--primary))]">
                   {resourceLabel}
                 </div>
               </div>
@@ -857,7 +863,7 @@ function ResultsTable({
                   onClick={() => {
                     void copySelectedRecord();
                   }}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-white px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(210_18%_34%)] transition-colors hover:bg-secondary"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-white px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(210_18%_34%)] transition-colors hover:bg-secondary dark:border-[hsl(210_12%_24%)] dark:bg-[hsl(210_16%_16%)] dark:text-[hsl(var(--primary))] dark:hover:bg-[hsl(185_24%_18%)]"
                 >
                   {copyFeedback === "copied" ? (
                     <Check className="h-3.5 w-3.5" aria-hidden="true" />
@@ -870,7 +876,7 @@ function ResultsTable({
                   type="button"
                   onClick={goToNextRow}
                   disabled={!hasNextRow}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-white px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(210_18%_34%)] transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-45"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-white px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[hsl(210_18%_34%)] transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-45 dark:border-[hsl(210_12%_24%)] dark:bg-[hsl(210_16%_16%)] dark:text-[hsl(var(--primary))] dark:hover:bg-[hsl(185_24%_18%)]"
                 >
                   Proximo registro
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -878,7 +884,7 @@ function ResultsTable({
                 <button
                   type="button"
                   onClick={closeDetailModal}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white text-[hsl(210_18%_34%)] transition-colors hover:bg-secondary"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white text-[hsl(210_18%_34%)] transition-colors hover:bg-secondary dark:border-[hsl(210_12%_24%)] dark:bg-[hsl(210_16%_16%)] dark:text-[hsl(var(--primary))] dark:hover:bg-[hsl(185_24%_18%)]"
                   aria-label="Fechar detalhamento"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
@@ -889,19 +895,19 @@ function ResultsTable({
             <div className="max-h-[calc(100vh-10rem)] overflow-y-auto px-5 py-4">
               <div className="space-y-5">
                 <section className="space-y-3">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(210_10%_52%)]">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(210_10%_52%)] dark:text-[hsl(210_10%_66%)]">
                     Informacoes principais
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {detailGroups.primary.map((column) => (
                       <div
                         key={`modal-primary-${column}`}
-                        className="rounded-[14px] border border-[hsl(190_30%_82%)] bg-[linear-gradient(180deg,hsl(190_32%_97.5%),hsl(0_0%_100%))] px-3.5 py-3"
+                        className="rounded-[14px] border border-[hsl(190_30%_82%)] bg-[linear-gradient(180deg,hsl(190_32%_97.5%),hsl(0_0%_100%))] px-3.5 py-3 dark:border-[hsl(185_20%_26%)] dark:bg-[linear-gradient(180deg,hsl(185_18%_16%),hsl(210_18%_13%))]"
                       >
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[hsl(210_10%_52%)]">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[hsl(210_10%_52%)] dark:text-[hsl(210_10%_66%)]">
                           {formatFieldLabel(column, resourceKey)}
                         </div>
-                        <div className="mt-1.5 break-words text-sm font-medium leading-6 text-[hsl(210_24%_22%)]">
+                        <div className="mt-1.5 break-words text-sm font-medium leading-6 text-[hsl(210_24%_22%)] dark:text-[hsl(185_42%_74%)]">
                           {formatCellValue(selectedRow[column])}
                         </div>
                       </div>
@@ -911,20 +917,20 @@ function ResultsTable({
 
                 {detailGroups.secondary.length > 0 && (
                   <section className="space-y-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(210_10%_52%)]">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[hsl(210_10%_52%)] dark:text-[hsl(210_10%_66%)]">
                       Campos complementares
                     </div>
-                    <div className="rounded-[16px] border border-border/80 bg-white p-2.5">
+                    <div className="rounded-[16px] border border-border/80 bg-white p-2.5 dark:border-[hsl(210_12%_24%)] dark:bg-[hsl(210_16%_14%)]">
                       <dl className="grid gap-2 sm:grid-cols-2">
                         {detailGroups.secondary.map((column) => (
                           <div
                             key={`modal-secondary-${column}`}
-                            className="rounded-[12px] border border-border/70 bg-[hsl(210_30%_99%)] px-3 py-2.5"
+                            className="rounded-[12px] border border-border/70 bg-[hsl(210_30%_99%)] px-3 py-2.5 dark:border-[hsl(210_12%_22%)] dark:bg-[hsl(210_16%_16%)]"
                           >
-                            <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(210_10%_52%)]">
+                            <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[hsl(210_10%_52%)] dark:text-[hsl(210_10%_66%)]">
                               {formatFieldLabel(column, resourceKey)}
                             </dt>
-                            <dd className="mt-1 break-words text-sm leading-5 text-[hsl(210_24%_22%)]">
+                            <dd className="mt-1 break-words text-sm leading-5 text-[hsl(210_24%_22%)] dark:text-[hsl(185_42%_74%)]">
                               {formatCellValue(selectedRow[column])}
                             </dd>
                           </div>

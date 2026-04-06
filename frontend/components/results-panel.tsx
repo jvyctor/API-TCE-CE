@@ -577,29 +577,29 @@ function ResultsTable({
   }
 
   return (
-    <div className="soft-reveal w-full max-w-full overflow-hidden rounded-[22px] border border-[hsl(205_24%_84%)] bg-[linear-gradient(180deg,hsl(0_0%_100%),hsl(210_30%_97.5%))] shadow-[0_12px_28px_hsl(205_22%_18%_/_0.06)]">
-      <div className="border-b border-border/80 bg-[linear-gradient(180deg,hsl(0_0%_100%),hsl(210_24%_97.5%))] px-4 py-3.5">
+    <div className="soft-reveal w-full max-w-full overflow-hidden rounded-[22px] border border-[hsl(205_24%_84%)] bg-[linear-gradient(180deg,hsl(0_0%_100%),hsl(210_30%_97.5%))] shadow-[0_12px_28px_hsl(205_22%_18%_/_0.06)] dark:border-[hsl(210_12%_22%)] dark:bg-[linear-gradient(180deg,hsl(210_16%_14%),hsl(210_18%_11%))] dark:shadow-[0_18px_44px_hsl(210_30%_2%_/_0.24)]">
+      <div className="border-b border-border/80 bg-[linear-gradient(180deg,hsl(0_0%_100%),hsl(210_24%_97.5%))] px-4 py-3.5 dark:border-[hsl(210_12%_22%)] dark:bg-[linear-gradient(180deg,hsl(210_16%_15%),hsl(210_18%_12%))]">
         <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0 flex-1">
-            <div className="mb-1.5 inline-flex items-center gap-2 rounded-full border border-[hsl(205_24%_82%)] bg-[hsl(210_35%_97%)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[hsl(201_34%_35%)]">
+            <div className="mb-1.5 inline-flex items-center gap-2 rounded-full border border-[hsl(205_24%_82%)] bg-[hsl(210_35%_97%)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[hsl(201_34%_35%)] dark:border-[hsl(210_12%_26%)] dark:bg-[hsl(210_15%_18%)] dark:text-[hsl(185_32%_77%)]">
               Painel executivo
             </div>
-            <h3 className="text-[1.02rem] font-bold tracking-[-0.02em] text-[hsl(210_24%_22%)]">
+            <h3 className="text-[1.02rem] font-bold tracking-[-0.02em] text-[hsl(210_24%_22%)] dark:text-[hsl(0_0%_96%)]">
               Registros em tabela
             </h3>
-            <p className="mt-0.5 text-sm leading-5 text-[hsl(210_10%_47%)]">
+            <p className="mt-0.5 text-sm leading-5 text-[hsl(210_10%_47%)] dark:text-[hsl(210_10%_66%)]">
               Leitura consolidada do controle `{resourceLabel}`.
             </p>
           </div>
 
-          <label className="flex min-w-[240px] max-w-[280px] items-center gap-2 rounded-[12px] border border-[hsl(205_24%_84%)] bg-white px-3 py-2 shadow-[inset_0_1px_0_hsl(0_0%_100%_/_0.92)]">
-            <Search className="h-3.5 w-3.5 text-[hsl(210_10%_52%)]" aria-hidden="true" />
+          <label className="flex min-w-[240px] max-w-[280px] items-center gap-2 rounded-[12px] border border-[hsl(205_24%_84%)] bg-white px-3 py-2 shadow-[inset_0_1px_0_hsl(0_0%_100%_/_0.92)] dark:border-[hsl(210_12%_24%)] dark:bg-[hsl(210_16%_15%)] dark:shadow-[inset_0_1px_0_hsl(0_0%_100%_/_0.03)]">
+            <Search className="h-3.5 w-3.5 text-[hsl(210_10%_52%)] dark:text-[hsl(210_10%_66%)]" aria-hidden="true" />
             <input
               type="search"
               value={tableSearch}
               onChange={(event) => setTableSearch(event.target.value)}
               placeholder="Pesquisar na tabela"
-              className="w-full border-0 bg-transparent text-[12px] text-[hsl(210_24%_22%)] outline-none placeholder:text-[hsl(210_10%_60%)]"
+              className="w-full border-0 bg-transparent text-[12px] text-[hsl(210_24%_22%)] outline-none placeholder:text-[hsl(210_10%_60%)] dark:text-[hsl(0_0%_96%)] dark:placeholder:text-[hsl(210_10%_54%)]"
               aria-label="Pesquisar na tabela"
             />
           </label>
@@ -621,39 +621,39 @@ function ResultsTable({
               {isExportingCsv ? "Gerando CSV..." : "Exportar CSV"}
               {!isExportingCsv && <ArrowUpRight className="h-3.5 w-3.5 opacity-80" aria-hidden="true" />}
             </button>
-            <div className="min-w-[140px] max-w-[140px] rounded-[12px] border border-[hsl(205_24%_84%)] bg-white px-3 py-1.5 shadow-[inset_0_1px_0_hsl(0_0%_100%_/_0.92)]">
-              <div className="mb-0.5 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-[hsl(210_10%_52%)]">
+            <div className="min-w-[140px] max-w-[140px] rounded-[12px] border border-[hsl(205_24%_84%)] bg-white px-3 py-1.5 shadow-[inset_0_1px_0_hsl(0_0%_100%_/_0.92)] dark:border-[hsl(210_12%_24%)] dark:bg-[hsl(210_16%_15%)] dark:shadow-[inset_0_1px_0_hsl(0_0%_100%_/_0.03)]">
+              <div className="mb-0.5 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-[hsl(210_10%_52%)] dark:text-[hsl(210_10%_66%)]">
                 <Clock3 className="h-3 w-3 text-primary/80" aria-hidden="true" />
                 Atualizacao
               </div>
-              <div className="text-[12px] font-semibold leading-4 text-[hsl(210_24%_22%)]">{updatedAtLabel}</div>
+              <div className="text-[12px] font-semibold leading-4 text-[hsl(210_24%_22%)] dark:text-[hsl(0_0%_96%)]">{updatedAtLabel}</div>
             </div>
             {municipality && (
-              <div className="min-w-[128px] max-w-[128px] rounded-[12px] border border-[hsl(188_34%_80%)] bg-[linear-gradient(180deg,hsl(190_42%_97.5%),hsl(0_0%_100%))] px-3 py-1.5 text-xs shadow-[0_5px_12px_hsl(192_35%_45%_/_0.05)]">
-                <div className="mb-0.5 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-[hsl(210_10%_52%)]">
+              <div className="min-w-[128px] max-w-[128px] rounded-[12px] border border-[hsl(188_34%_80%)] bg-[linear-gradient(180deg,hsl(190_42%_97.5%),hsl(0_0%_100%))] px-3 py-1.5 text-xs shadow-[0_5px_12px_hsl(192_35%_45%_/_0.05)] dark:border-[hsl(185_20%_26%)] dark:bg-[linear-gradient(180deg,hsl(185_18%_16%),hsl(210_18%_13%))]">
+                <div className="mb-0.5 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-[hsl(210_10%_52%)] dark:text-[hsl(210_10%_66%)]">
                   <MapPin className="h-3 w-3 text-primary/80" aria-hidden="true" />
                   Contexto
                 </div>
                 <div className="space-y-0.5">
-                  <div className="truncate text-[12px] font-semibold leading-4 text-[hsl(210_24%_22%)]">{municipality.nome_municipio}</div>
-                  <div className="text-[10px] leading-4 text-[hsl(210_10%_52%)]">TCE: {municipality.codigo_municipio}</div>
+                  <div className="truncate text-[12px] font-semibold leading-4 text-[hsl(210_24%_22%)] dark:text-[hsl(0_0%_96%)]">{municipality.nome_municipio}</div>
+                  <div className="text-[10px] leading-4 text-[hsl(210_10%_52%)] dark:text-[hsl(210_10%_66%)]">TCE: {municipality.codigo_municipio}</div>
                 </div>
               </div>
             )}
             {resourceCategory && (
-              <div className="min-w-[148px] max-w-[148px] rounded-[12px] border border-[hsl(205_24%_84%)] bg-[linear-gradient(180deg,hsl(0_0%_100%),hsl(210_28%_98.5%))] px-3 py-1.5 text-xs shadow-[0_5px_12px_hsl(210_20%_24%_/_0.04)]">
-                <div className="mb-0.5 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-[hsl(210_10%_52%)]">
+              <div className="min-w-[148px] max-w-[148px] rounded-[12px] border border-[hsl(205_24%_84%)] bg-[linear-gradient(180deg,hsl(0_0%_100%),hsl(210_28%_98.5%))] px-3 py-1.5 text-xs shadow-[0_5px_12px_hsl(210_20%_24%_/_0.04)] dark:border-[hsl(210_12%_24%)] dark:bg-[linear-gradient(180deg,hsl(210_16%_15%),hsl(210_18%_13%))]">
+                <div className="mb-0.5 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-[hsl(210_10%_52%)] dark:text-[hsl(210_10%_66%)]">
                   <Tag className="h-3 w-3 text-primary/80" aria-hidden="true" />
                   Categoria
                 </div>
-                <div className="line-clamp-2 text-[12px] font-semibold leading-4 text-[hsl(210_24%_22%)]">{resourceCategory}</div>
+                <div className="line-clamp-2 text-[12px] font-semibold leading-4 text-[hsl(210_24%_22%)] dark:text-[hsl(0_0%_96%)]">{resourceCategory}</div>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="border-t border-border/70 bg-[linear-gradient(180deg,hsl(200_45%_99%),hsl(0_0%_100%))] p-4 md:hidden">
+      <div className="border-t border-border/70 bg-[linear-gradient(180deg,hsl(200_45%_99%),hsl(0_0%_100%))] p-4 dark:border-[hsl(210_12%_22%)] dark:bg-[linear-gradient(180deg,hsl(210_16%_14%),hsl(210_18%_11.5%))] md:hidden">
         <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           Registros carregados
         </div>
@@ -686,7 +686,7 @@ function ResultsTable({
         </div>
       </div>
 
-      <div ref={gridContainerRef} className="hidden md:block bg-[linear-gradient(180deg,hsl(0_0%_100%),hsl(210_30%_98%))] p-2.5">
+      <div ref={gridContainerRef} className="hidden md:block bg-[linear-gradient(180deg,hsl(0_0%_100%),hsl(210_30%_98%))] p-2.5 dark:bg-[linear-gradient(180deg,hsl(210_16%_14%),hsl(210_18%_11.5%))]">
         <TableContainer
           component={Paper}
           elevation={0}

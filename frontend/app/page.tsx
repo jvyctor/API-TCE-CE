@@ -403,14 +403,48 @@ export default async function Home({
       />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <section className="soft-reveal mb-8 overflow-hidden rounded-[28px] border border-border/70 bg-card/70 px-6 py-6 shadow-[0_24px_80px_hsl(200_30%_10%_/_0.08)] backdrop-blur-xl">
-          <div className="max-w-5xl">
-            <div className="mb-3 inline-flex rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">
+        <section className="soft-reveal mb-8 overflow-hidden rounded-[32px] border border-primary/15 bg-[linear-gradient(135deg,#007F86_0%,#2BAFB6_100%)] shadow-[0_20px_50px_rgba(0,127,134,0.2)]">
+          <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="px-7 py-8 sm:px-10 sm:py-10 lg:px-12 lg:py-14">
+            <div className="mb-4 inline-flex rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/90">
               Dados Abertos do TCE-CE
             </div>
-            <h2 className="max-w-none text-2xl font-extrabold tracking-[-0.04em] text-foreground sm:text-3xl lg:text-[2.1rem] lg:leading-[1.1]">
+            <h2 className="max-w-4xl text-3xl font-bold tracking-[-0.04em] text-white sm:text-4xl lg:text-[3.25rem] lg:leading-[1.04]">
               Consulta Técnica no Tribunal de Contas do Estado do Ceará
             </h2>
+            <p className="mt-5 max-w-3xl text-sm leading-8 text-white/84 sm:text-base">
+              Estrutura de consulta orientada a operacao, com contraste forte, superficies claras
+              e a mesma paleta teal corporativa usada no projeto de referencia.
+            </p>
+            <div className="mt-10 flex flex-wrap gap-3 text-white/92">
+              <div className="rounded-md px-3 py-2 text-xs font-medium uppercase tracking-[0.18em] hover:bg-white/10">
+                Consulta integral
+              </div>
+              <div className="rounded-md px-3 py-2 text-xs font-medium uppercase tracking-[0.18em] hover:bg-white/10">
+                Exportacao CSV
+              </div>
+              <div className="rounded-md px-3 py-2 text-xs font-medium uppercase tracking-[0.18em] hover:bg-white/10">
+                Filtros dinamicos
+              </div>
+            </div>
+          </div>
+          <aside className="border-t border-white/10 bg-white/96 px-6 py-7 lg:border-l lg:border-t-0">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
+              Modo dev
+            </div>
+            <p className="mt-4 text-sm leading-7 text-muted-foreground">
+              Esta interface consulta o catalogo de recursos, organiza filtros por endpoint
+              e prepara exportacao completa em CSV.
+            </p>
+            <div className="mt-8 rounded-[20px] border border-primary/10 bg-primary/5 p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+                Referencia visual
+              </div>
+              <p className="mt-2 text-sm leading-7 text-foreground">
+                Inspirada no desenho do Fluxus: cor primaria dominante, blocos claros e leitura mais direta.
+              </p>
+            </div>
+          </aside>
           </div>
         </section>
 
@@ -455,7 +489,7 @@ export default async function Home({
       </main>
 
       {/* Footer */}
-      <footer className="mt-10 border-t border-border/80 bg-background/80 backdrop-blur-xl">
+      <footer className="mt-10 border-t border-border/80 bg-background/90">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <p className="text-center text-xs text-muted-foreground">
             Dados fornecidos pela API de Dados Abertos do TCE-CE. Esta interface

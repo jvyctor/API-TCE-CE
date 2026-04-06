@@ -152,6 +152,6 @@ describe("ResultsPanel", () => {
     );
 
     expect(screen.getByRole("button", { name: "Exportar CSV completo" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Baixar TXT" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Baixar TXT" })).not.toBeInTheDocument();
   });
 });

@@ -9,7 +9,7 @@ public sealed class TceCeApiOptions
 
     [Required]
     [Url]
-    public string BaseUrl { get; init; } = "https://api.tcm.ce.gov.br/";
+    public string BaseUrl { get; init; } = "https://api-dados-abertos.tce.ce.gov.br/";
 
     [Range(30, 86400)]
     public int CacheSeconds { get; init; } = 300;

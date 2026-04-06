@@ -190,64 +190,6 @@ function buildExportFileName(resource: string) {
   return `${resource}_${timestamp}.csv`;
 }
 
-function buildTextExportFileName(resource: string) {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return `${resource}_${timestamp}.txt`;
-}
-
-function buildTxtContent({
-  items,
-  resourceKey,
-  resourceCategory,
-  municipality,
-  filters,
-}: {
-  items: Array<Record<string, unknown>>;
-  resourceKey: string;
-  resourceCategory: string | null;
-  municipality: MunicipalityInfo | null;
-  filters: Array<{ key: string; value: string }>;
-}) {
-  const columns = orderVisibleColumns(
-    resourceKey,
-    Array.from(
-      new Set(
-        items.flatMap((item) =>
-          Object.keys(item).filter((column) => !hiddenTableColumns.has(column))
-        )
-      )
-    )
-  );
-
-  const lines: string[] = [
-    `Endpoint: ${formatResourceLabel(resourceKey)}`,
-    `Categoria: ${resourceCategory ?? "-"}`,
-    `Municipio: ${municipality ? `${municipality.nome_municipio} (TCE-CE ${municipality.codigo_municipio})` : "-"}`,
-    `Total de registros: ${items.length.toLocaleString("pt-BR")}`,
-    `Gerado em: ${new Date().toLocaleString("pt-BR")}`,
-  ];
-
-  if (filters.length > 0) {
-    lines.push("", "Filtros aplicados:");
-    filters.forEach((filter) => {
-      lines.push(`- ${formatFieldLabel(filter.key, resourceKey)}: ${filter.value}`);
-    });
-  }
-
-  lines.push("", "Registros:");
-
-  items.forEach((item, index) => {
-    lines.push("", `Registro ${index + 1}`);
-    lines.push("-".repeat(48));
-
-    columns.forEach((column) => {
-      lines.push(`${formatFieldLabel(column, resourceKey)}: ${formatCellValue(item[column])}`);
-    });
-  });
-
-  return lines.join("\r\n");
-}
-
 function buildRelativeApiUrl(
   resource: string,
   page: number,
@@ -278,9 +220,7 @@ function ResultsTable({
   resourceCategory,
   municipality,
   isExportingCsv,
-  isExportingTxt,
   onExportCsv,
-  onExportTxt,
   resourceKey,
   gridContainerRef,
 }: {
@@ -289,9 +229,7 @@ function ResultsTable({
   resourceCategory: string | null;
   municipality: MunicipalityInfo | null;
   isExportingCsv: boolean;
-  isExportingTxt: boolean;
   onExportCsv: () => Promise<void>;
-  onExportTxt: () => Promise<void>;
   resourceKey: string;
   gridContainerRef: RefObject<HTMLDivElement | null>;
 }) {
@@ -321,11 +259,11 @@ function ResultsTable({
   }));
 
   return (
-    <div className="surface-panel soft-reveal w-full max-w-full overflow-hidden rounded-2xl">
+    <div className="surface-panel soft-reveal w-full max-w-full overflow-hidden rounded-[26px]">
       <div className="border-b border-border/70 bg-card px-5 py-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h3 className="text-base font-semibold text-foreground">
+            <h3 className="text-base font-bold text-foreground">
               Registros em tabela
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -339,25 +277,14 @@ function ResultsTable({
               onClick={() => {
                 void onExportCsv();
               }}
-              disabled={isExportingCsv || isExportingTxt}
-              className="inline-flex min-h-[52px] min-w-[160px] items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary px-3 py-2 text-[11px] font-semibold text-primary-foreground shadow-[0_10px_24px_hsl(var(--primary)/0.22)] transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-[0_14px_30px_hsl(var(--primary)/0.28)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
+              disabled={isExportingCsv}
+              className="flux-button-primary min-h-[48px] min-w-[150px] rounded-2xl px-3 py-2 text-[11px] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isExportingCsv && <CircularProgress size={16} sx={{ color: "currentColor" }} />}
               {isExportingCsv ? "Gerando CSV..." : "Exportar CSV completo"}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                void onExportTxt();
-              }}
-              disabled={isExportingCsv || isExportingTxt}
-              className="inline-flex min-h-[52px] min-w-[160px] items-center justify-center gap-2 rounded-xl border border-border/80 bg-card px-3 py-2 text-[11px] font-semibold text-foreground shadow-[0_10px_24px_hsl(190_18%_30%_/_0.08)] transition-all hover:-translate-y-0.5 hover:bg-secondary/70 hover:shadow-[0_14px_30px_hsl(190_18%_28%_/_0.12)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
-            >
-              {isExportingTxt && <CircularProgress size={16} sx={{ color: "currentColor" }} />}
-              {isExportingTxt ? "Gerando TXT..." : "Baixar TXT"}
-            </button>
             {municipality && (
-              <div className="max-w-[230px] rounded-xl border border-border/80 bg-background px-3 py-2 text-xs">
+              <div className="max-w-[220px] rounded-2xl border border-border bg-background px-3 py-2 text-xs">
                 <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   <MapPin className="h-3.5 w-3.5 text-primary/80" aria-hidden="true" />
                   Contexto territorial
@@ -371,7 +298,7 @@ function ResultsTable({
             )}
 
             {resourceCategory && (
-              <div className="max-w-[230px] rounded-xl border border-border/80 bg-background px-3 py-2 text-xs">
+              <div className="max-w-[220px] rounded-2xl border border-border bg-background px-3 py-2 text-xs">
                 <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   <Tag className="h-3.5 w-3.5 text-primary/80" aria-hidden="true" />
                   Categoria
@@ -391,7 +318,7 @@ function ResultsTable({
           {items.map((item, index) => (
             <article
               key={`${resourceKey}-mobile-${index}`}
-              className="rounded-2xl border border-border/80 bg-background/95 p-4 shadow-[0_6px_18px_hsl(200_18%_18%_/_0.05)]"
+              className="rounded-2xl border border-border bg-background p-4 shadow-[0_6px_16px_hsl(210_18%_18%_/_0.05)]"
             >
               <div className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
                 Registro {index + 1}
@@ -549,7 +476,6 @@ export function ResultsPanel({
   const [isLoadingInitial, setIsLoadingInitial] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
-  const [isExportingTxt, setIsExportingTxt] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [initialLoadError, setInitialLoadError] = useState<string | null>(null);
@@ -561,7 +487,6 @@ export function ResultsPanel({
     setIsLoadingInitial(false);
     setIsLoadingMore(false);
     setIsExportingCsv(false);
-    setIsExportingTxt(false);
     setLoadMoreError(null);
     setExportError(null);
     setInitialLoadError(null);
@@ -792,7 +717,7 @@ export function ResultsPanel({
   }, [hasNextPage, isLoadingMore, currentPayload.items.length]);
 
   async function exportAllRecords() {
-    if (isExportingCsv || isExportingTxt) {
+    if (isExportingCsv) {
       return;
     }
 
@@ -822,46 +747,6 @@ export function ResultsPanel({
       setExportError("Nao foi possivel exportar os registros agora.");
     } finally {
       setIsExportingCsv(false);
-    }
-  }
-
-  async function exportAllRecordsAsTxt() {
-    if (isExportingCsv || isExportingTxt) {
-      return;
-    }
-
-    setIsExportingTxt(true);
-    setExportError(null);
-
-    try {
-      const allItems = await fetchAllUniqueItems();
-      if (!allItems) {
-        setExportError("Nao foi possivel exportar os registros agora.");
-        return;
-      }
-
-      const txtContent = buildTxtContent({
-        items: allItems,
-        resourceKey: selectedResource,
-        resourceCategory,
-        municipality,
-        filters: querySummary,
-      });
-      const blob = new Blob([txtContent], {
-        type: "text/plain;charset=utf-8;",
-      });
-      const downloadUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = downloadUrl;
-      anchor.download = buildTextExportFileName(selectedResource);
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(downloadUrl);
-    } catch {
-      setExportError("Nao foi possivel exportar os registros agora.");
-    } finally {
-      setIsExportingTxt(false);
     }
   }
 
@@ -920,14 +805,12 @@ export function ResultsPanel({
         resourceCategory={resourceCategory}
         municipality={municipality}
         isExportingCsv={isExportingCsv}
-        isExportingTxt={isExportingTxt}
         onExportCsv={exportAllRecords}
-        onExportTxt={exportAllRecordsAsTxt}
         resourceKey={selectedResource}
         gridContainerRef={gridContainerRef}
       />
 
-      <div className="surface-panel flex min-h-14 flex-col items-center justify-center gap-3 rounded-2xl px-4 py-4 sm:flex-row">
+      <div className="surface-panel flex min-h-14 flex-col items-center justify-center gap-3 rounded-[24px] px-4 py-4 sm:flex-row">
         {hasNextPage ? (
           <div className="flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
             {isLoadingMore && <CircularProgress size={16} sx={{ color: "currentColor" }} />}
@@ -944,7 +827,7 @@ export function ResultsPanel({
         )}
       </div>
 
-      <nav aria-label="Resumo dos resultados" className="surface-panel flex flex-col gap-3 rounded-2xl px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <nav aria-label="Resumo dos resultados" className="surface-panel flex flex-col gap-3 rounded-[24px] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-primary/15 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
             {visibleTotalLabel}

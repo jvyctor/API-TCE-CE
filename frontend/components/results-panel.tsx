@@ -48,6 +48,10 @@ type ResultsPanelProps = {
   shouldFetchOnMount?: boolean;
 };
 
+type ResultsTableRow = Record<string, unknown> & {
+  id: string;
+};
+
 const csvDelimiter = ";";
 const displayBatchSize = 250;
 const hiddenTableColumns = new Set(["codigo_municipio", "exercicio_orcamento"]);
@@ -472,7 +476,7 @@ function ResultsTable({
       renderCell: (params) => formatCellValue(params.value),
     };
   });
-  const filteredRows = filteredItems.map((item, index) => ({
+  const filteredRows: ResultsTableRow[] = filteredItems.map((item, index) => ({
     id: `${resourceKey}-filtered-${index}`,
     ...item,
   }));
